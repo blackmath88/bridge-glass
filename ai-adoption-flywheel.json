@@ -1,0 +1,205 @@
+{
+  "id": "t_flywheel",
+  "name": "AI Adoption Flywheel",
+  "description": "Use case → reality → foundation → governance → scale. The core momentum loop of Bridge Work adoption.",
+  "category": "adoption",
+  "tags": [
+    "adoption",
+    "flywheel",
+    "momentum",
+    "core"
+  ],
+  "style": "bridgeboard_dark_glass",
+  "accent": "#2a8fa0",
+  "objects": [
+    {
+      "type": "text",
+      "text": "AI ADOPTION FLYWHEEL",
+      "x": 0.05,
+      "y": 0.09,
+      "size": 0.03,
+      "color": "#f0ebe3",
+      "width": 3
+    },
+    {
+      "type": "circle",
+      "x": 0.44,
+      "y": 0.27,
+      "w": 0.12,
+      "h": 0.1,
+      "color": "#1a7a6d",
+      "width": 2
+    },
+    {
+      "type": "text",
+      "text": "Use cases",
+      "x": 0.455,
+      "y": 0.33,
+      "size": 0.02,
+      "color": "#f0ebe3",
+      "width": 3
+    },
+    {
+      "type": "arrow",
+      "x1": 0.5,
+      "y1": 0.275,
+      "x2": 0.6539,
+      "y2": 0.3828,
+      "color": "#2a8fa0",
+      "width": 3
+    },
+    {
+      "type": "circle",
+      "x": 0.6305,
+      "y": 0.38,
+      "w": 0.12,
+      "h": 0.1,
+      "color": "#1a7a6d",
+      "width": 2
+    },
+    {
+      "type": "text",
+      "text": "Reality",
+      "x": 0.6455,
+      "y": 0.44,
+      "size": 0.02,
+      "color": "#f0ebe3",
+      "width": 3
+    },
+    {
+      "type": "arrow",
+      "x1": 0.7338,
+      "y1": 0.4075,
+      "x2": 0.7131,
+      "y2": 0.5947,
+      "color": "#2a8fa0",
+      "width": 3
+    },
+    {
+      "type": "circle",
+      "x": 0.6305,
+      "y": 0.6,
+      "w": 0.12,
+      "h": 0.1,
+      "color": "#1a7a6d",
+      "width": 2
+    },
+    {
+      "type": "text",
+      "text": "Foundation",
+      "x": 0.6455,
+      "y": 0.66,
+      "size": 0.02,
+      "color": "#f0ebe3",
+      "width": 3
+    },
+    {
+      "type": "arrow",
+      "x1": 0.7338,
+      "y1": 0.6725,
+      "x2": 0.5592,
+      "y2": 0.7519,
+      "color": "#2a8fa0",
+      "width": 3
+    },
+    {
+      "type": "circle",
+      "x": 0.44,
+      "y": 0.71,
+      "w": 0.12,
+      "h": 0.1,
+      "color": "#1a7a6d",
+      "width": 2
+    },
+    {
+      "type": "text",
+      "text": "Governance",
+      "x": 0.455,
+      "y": 0.77,
+      "size": 0.02,
+      "color": "#f0ebe3",
+      "width": 3
+    },
+    {
+      "type": "arrow",
+      "x1": 0.5,
+      "y1": 0.805,
+      "x2": 0.3461,
+      "y2": 0.6972,
+      "color": "#2a8fa0",
+      "width": 3
+    },
+    {
+      "type": "circle",
+      "x": 0.2495,
+      "y": 0.6,
+      "w": 0.12,
+      "h": 0.1,
+      "color": "#1a7a6d",
+      "width": 2
+    },
+    {
+      "type": "text",
+      "text": "Scale",
+      "x": 0.2645,
+      "y": 0.66,
+      "size": 0.02,
+      "color": "#f0ebe3",
+      "width": 3
+    },
+    {
+      "type": "arrow",
+      "x1": 0.2662,
+      "y1": 0.6725,
+      "x2": 0.2869,
+      "y2": 0.4853,
+      "color": "#2a8fa0",
+      "width": 3
+    },
+    {
+      "type": "circle",
+      "x": 0.2495,
+      "y": 0.38,
+      "w": 0.12,
+      "h": 0.1,
+      "color": "#1a7a6d",
+      "width": 2
+    },
+    {
+      "type": "text",
+      "text": "Learning",
+      "x": 0.2645,
+      "y": 0.44,
+      "size": 0.02,
+      "color": "#f0ebe3",
+      "width": 3
+    },
+    {
+      "type": "arrow",
+      "x1": 0.2662,
+      "y1": 0.4075,
+      "x2": 0.4408,
+      "y2": 0.3281,
+      "color": "#2a8fa0",
+      "width": 3
+    },
+    {
+      "type": "text",
+      "text": "Make work visible → make governance usable → make AI scalable",
+      "x": 0.22,
+      "y": 0.95,
+      "size": 0.021,
+      "color": "#8a8a8a",
+      "width": 3
+    }
+  ],
+  "facilitation_notes": [
+    "Draw the loop one node at a time — don't reveal all at once.",
+    "Pause on 'Reality' — this is where most clients realise it isn't a tool problem.",
+    "Use 'Foundation' to explain why governance comes before Copilot."
+  ],
+  "system_prompt": "Generate a circular flywheel of 6 adoption phases on a dark glass board, cyan arrows between nodes.",
+  "version": "1.2.0",
+  "created_at": "2026-06-05T00:00:00Z",
+  "updated_at": "2026-06-05T00:00:00Z"
+}
