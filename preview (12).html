@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Bridgeboard · Bridge Work AI Lab</title>
+  <style>
+    :root{
+      --bg:#050606; --panel:rgba(12,16,17,.66); --panel2:rgba(255,255,255,.055);
+      --line:rgba(255,255,255,.16); --text:#f3eee7; --muted:#9fa8a4;
+      --teal:#4fb7aa; --teal2:#1a7a6d; --amber:#d7a64b; --red:#d45c50;
+      --shadow:0 18px 60px rgba(0,0,0,.45);
+    }
+    *{box-sizing:border-box}
+    html,body{width:100%;height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;overflow:hidden;}
+    body:before{content:"";position:fixed;inset:-35%;background:radial-gradient(circle at 20% 20%, rgba(79,183,170,.16), transparent 27%),radial-gradient(circle at 78% 75%, rgba(215,166,75,.09), transparent 24%),linear-gradient(135deg, rgba(255,255,255,.025), transparent 42%);pointer-events:none;}
+    .app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr;}
+    header{position:relative;z-index:6;display:flex;align-items:center;justify-content:space-between;padding:14px 18px 8px;gap:16px;pointer-events:none;}
+    .brand{pointer-events:auto;display:flex;align-items:center;gap:12px;letter-spacing:.02em}.mark{width:34px;height:34px;border:1px solid rgba(255,255,255,.18);border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 25%, rgba(255,255,255,.16), rgba(255,255,255,.04));box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 10px 40px rgba(79,183,170,.16)}
+    .mark svg{width:22px}.brand b{font-size:14px;text-transform:uppercase;font-weight:600}.brand small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+    .status{pointer-events:auto;font-size:12px;color:var(--muted);border:1px solid rgba(255,255,255,.11);background:rgba(255,255,255,.04);backdrop-filter:blur(16px);border-radius:999px;padding:8px 12px;white-space:nowrap}.status strong{color:var(--text);font-weight:500}
+    main{position:relative;min-height:0}.stage{position:absolute;inset:0;margin:12px;border:1px solid rgba(255,255,255,.12);border-radius:28px;background:linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,.012)), #050606;box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,.07);overflow:hidden;}
+    .stage.grid{background-image:linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px),radial-gradient(circle at 20% 20%, rgba(79,183,170,.075), transparent 25%);background-size:44px 44px,44px 44px,100% 100%;background-color:#050606}
+    canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}.wordmark{position:absolute;right:22px;bottom:18px;color:rgba(255,255,255,.42);font-size:12px;letter-spacing:.18em;text-transform:uppercase;pointer-events:none}.hint{position:absolute;left:26px;bottom:20px;color:rgba(255,255,255,.32);font-size:12px;pointer-events:none}.toolbar{position:absolute;z-index:8;left:50%;top:20px;transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:8px;border:1px solid rgba(255,255,255,.13);background:var(--panel);backdrop-filter:blur(22px) saturate(1.2);border-radius:999px;box-shadow:0 18px 50px rgba(0,0,0,.38)}
+    button,.select,label.file{appearance:none;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.055);color:var(--text);border-radius:999px;padding:9px 11px;font-size:12px;line-height:1;cursor:pointer;transition:.16s ease;user-select:none}button:hover,label.file:hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.2)}button.active{background:rgba(79,183,170,.2);border-color:rgba(79,183,170,.44);box-shadow:inset 0 0 0 1px rgba(79,183,170,.13)}button.danger:hover{background:rgba(212,92,80,.16);border-color:rgba(212,92,80,.34)}.divider{width:1px;height:24px;background:rgba(255,255,255,.12);margin:0 3px}.swatch{width:30px;height:30px;border-radius:50%;padding:0}.swatch span{display:block;width:14px;height:14px;border-radius:50%;margin:auto;border:1px solid rgba(255,255,255,.18)}input[type="range"]{width:78px;accent-color:var(--teal)}input[type="file"]{display:none}.panel{position:absolute;z-index:7;right:22px;top:86px;width:min(360px, calc(100vw - 44px));border:1px solid rgba(255,255,255,.12);background:rgba(8,10,10,.72);backdrop-filter:blur(24px) saturate(1.15);border-radius:24px;padding:16px;box-shadow:0 24px 70px rgba(0,0,0,.46)}.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.14em;font-weight:650;margin:0 0 10px}.panel p{color:var(--muted);font-size:13px;line-height:1.45;margin:8px 0}.panel code{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;color:#d8d2c8;background:rgba(255,255,255,.07);padding:2px 5px;border-radius:6px}.templates{display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px}.templates button{text-align:left;border-radius:16px;padding:11px 12px}.templates b{display:block;font-size:12px}.templates span{display:block;color:var(--muted);font-size:11px;margin-top:4px}.chiprow{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.chip{font-size:11px;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.11);border-radius:999px;padding:7px 9px;background:rgba(255,255,255,.035)}.present header,.present .toolbar,.present .panel,.present .hint{display:none}.present .stage{margin:0;border-radius:0;border:none}.toast{position:absolute;z-index:20;left:50%;bottom:26px;transform:translateX(-50%);background:rgba(0,0,0,.68);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:10px 14px;color:var(--text);font-size:12px;opacity:0;pointer-events:none;transition:.2s ease}.toast.show{opacity:1}.mobileHelp{display:none}
+    @media(max-width:820px){header{padding:10px 12px 4px}.status{display:none}.stage{margin:7px;border-radius:20px}.toolbar{left:10px;right:10px;top:auto;bottom:10px;transform:none;overflow:auto;justify-content:flex-start;border-radius:20px}.panel{display:none}.mobileHelp{display:block;position:absolute;z-index:7;left:14px;top:72px;right:14px;padding:12px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.42);backdrop-filter:blur(12px);border-radius:18px;color:var(--muted);font-size:12px;line-height:1.35}.hint,.wordmark{display:none}input[type="range"]{width:62px}}
+  </style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><path d="M12 39c10-18 30-18 40 0" stroke="#f3eee7" stroke-width="3" stroke-linecap="round"/><path d="M18 39h28M24 31v8M32 27v12M40 31v8" stroke="#4fb7aa" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div><b>Bridgeboard</b><small>Bridge Work AI Lab · glassboard prototype</small></div>
+    </div>
+    <div class="status" id="deviceStatus">Input: <strong>mouse / touch / pen ready</strong></div>
+  </header>
+  <main>
+    <div class="stage grid" id="stage">
+      <canvas id="canvas"></canvas>
+      <div class="wordmark">Bridge Work</div>
+      <div class="hint">Draw with mouse, touch or Samsung S Pen · press P for present mode · Esc to exit</div>
+      <div class="mobileHelp">Phone/stylus mode: draw directly here with your Samsung S Pen. Remote control of a notebook presentation needs a sync layer; this prototype shows the input surface and board behavior.</div>
+    </div>
+
+    <div class="toolbar" id="toolbar" role="toolbar">
+      <button data-tool="pen" class="active">Pen</button>
+      <button data-tool="eraser">Erase</button>
+      <button data-tool="text">Text</button>
+      <button data-tool="line">Line</button>
+      <button data-tool="arrow">Arrow</button>
+      <button data-tool="rect">Rect</button>
+      <button data-tool="circle">Circle</button>
+      <div class="divider"></div>
+      <button class="swatch active" data-color="#f3eee7" title="Warm white"><span style="background:#f3eee7"></span></button>
+      <button class="swatch" data-color="#4fb7aa" title="Teal"><span style="background:#4fb7aa"></span></button>
+      <button class="swatch" data-color="#a9afab" title="Grey"><span style="background:#a9afab"></span></button>
+      <button class="swatch" data-color="#d7a64b" title="Amber"><span style="background:#d7a64b"></span></button>
+      <input id="width" type="range" min="1" max="18" value="4" title="Stroke width" />
+      <div class="divider"></div>
+      <button id="undo">Undo</button><button id="redo">Redo</button>
+      <button id="grid">Grid</button><button id="present">Present</button>
+      <button id="exportPng">PNG</button><button id="exportJson">JSON</button>
+      <label class="file">Load<input id="loadJson" type="file" accept="application/json" /></label>
+      <button id="clear" class="danger">Clear</button>
+    </div>
+
+    <aside class="panel">
+      <h2>Thinking on glass</h2>
+      <p>Use this as a live explanation board: sketch AI adoption, governance flows, M365 readiness, and workshop maps in a calm black-room style.</p>
+      <p><strong>Samsung S Pen:</strong> supported through browser <code>Pointer Events</code>. Pressure may work depending on browser/device. Use Chrome/Samsung Internet.</p>
+      <p><strong>Phone → notebook input:</strong> needs a small sync layer such as WebSocket, WebRTC, Firebase/Supabase realtime, or a local Node server. Static HTML alone cannot reliably stream pen strokes between two devices.</p>
+      <div class="templates">
+        <button data-template="flywheel"><b>AI Adoption Flywheel</b><span>Use case → reality → foundation → governance → scale</span></button>
+        <button data-template="matrix"><b>Risk / Value Matrix</b><span>Prioritize AI cases by governance risk and organizational value</span></button>
+        <button data-template="map"><b>People / Work / Data / Governance</b><span>Four-field adoption architecture canvas</span></button>
+      </div>
+      <div class="chiprow"><div class="chip">Export PNG</div><div class="chip">JSON session</div><div class="chip">Present mode</div><div class="chip">Pen/touch ready</div></div>
+    </aside>
+    <div class="toast" id="toast"></div>
+  </main>
+</div>
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+  const app = document.getElementById('app');
+  const status = document.getElementById('deviceStatus');
+  const toast = document.getElementById('toast');
+  let dpr = Math.max(1, window.devicePixelRatio || 1);
+  let tool = 'pen', color = '#f3eee7', width = 4;
+  let objects = [], redoStack = [];
+  let drawing = false, start = null, current = null;
+
+  function showToast(msg){ toast.textContent = msg; toast.classList.add('show'); clearTimeout(showToast.t); showToast.t=setTimeout(()=>toast.classList.remove('show'),1600); }
+  function resize(){
+    const r = stage.getBoundingClientRect(); dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.round(r.width*dpr); canvas.height = Math.round(r.height*dpr);
+    canvas.style.width = r.width+'px'; canvas.style.height = r.height+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0); redraw();
+  }
+  function pos(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top, p:e.pressure && e.pressure>0 ? e.pressure : 1}; }
+  function drawObj(o, preview=false){
+    ctx.save(); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle=o.color; ctx.fillStyle=o.color; ctx.globalAlpha=preview ? .72 : 1; ctx.lineWidth=o.width;
+    if(o.type==='stroke' || o.type==='eraser'){
+      ctx.globalCompositeOperation = o.type==='eraser' ? 'destination-out' : 'source-over';
+      ctx.beginPath(); o.points.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); }); ctx.stroke();
+    }
+    if(o.type==='line' || o.type==='arrow'){
+      ctx.beginPath(); ctx.moveTo(o.x1,o.y1); ctx.lineTo(o.x2,o.y2); ctx.stroke();
+      if(o.type==='arrow'){
+        const a=Math.atan2(o.y2-o.y1,o.x2-o.x1), len=16+o.width;
+        ctx.beginPath(); ctx.moveTo(o.x2,o.y2); ctx.lineTo(o.x2-len*Math.cos(a-Math.PI/6), o.y2-len*Math.sin(a-Math.PI/6)); ctx.moveTo(o.x2,o.y2); ctx.lineTo(o.x2-len*Math.cos(a+Math.PI/6), o.y2-len*Math.sin(a+Math.PI/6)); ctx.stroke();
+      }
+    }
+    if(o.type==='rect'){ ctx.strokeRect(o.x, o.y, o.w, o.h); }
+    if(o.type==='circle'){ const rx=o.w/2, ry=o.h/2; ctx.beginPath(); ctx.ellipse(o.x+rx,o.y+ry,Math.abs(rx),Math.abs(ry),0,0,Math.PI*2); ctx.stroke(); }
+    if(o.type==='text'){ ctx.font=`${o.size || 26}px Inter, system-ui, sans-serif`; ctx.fillText(o.text, o.x, o.y); }
+    ctx.restore();
+  }
+  function redraw(){ ctx.clearRect(0,0,canvas.width/dpr,canvas.height/dpr); objects.forEach(o=>drawObj(o)); if(current) drawObj(current,true); }
+  function add(o){ objects.push(o); redoStack=[]; redraw(); }
+  function makeShape(p){
+    const base = {type:tool, color, width, x1:start.x, y1:start.y, x2:p.x, y2:p.y};
+    if(tool==='rect' || tool==='circle') return {type:tool, color, width, x:Math.min(start.x,p.x), y:Math.min(start.y,p.y), w:Math.abs(p.x-start.x), h:Math.abs(p.y-start.y)};
+    return base;
+  }
+  canvas.addEventListener('pointerdown', e=>{
+    canvas.setPointerCapture(e.pointerId); const p=pos(e); start=p; drawing=true; status.innerHTML = `Input: <strong>${e.pointerType || 'pointer'}</strong>`;
+    if(tool==='text'){
+      const text = prompt('Text on glass:'); if(text) add({type:'text', text, x:p.x, y:p.y, color, width, size:28}); drawing=false; return;
+    }
+    if(tool==='pen' || tool==='eraser') current={type:tool==='eraser'?'eraser':'stroke', color, width:tool==='eraser'?width*3:width, points:[p]};
+    else current=makeShape(p);
+    redraw();
+  });
+  canvas.addEventListener('pointermove', e=>{ if(!drawing || !current) return; const p=pos(e); if(tool==='pen' || tool==='eraser'){ current.points.push(p); } else { current=makeShape(p); } redraw(); });
+  function finish(){ if(!drawing || !current) return; add(current); current=null; drawing=false; }
+  canvas.addEventListener('pointerup', finish); canvas.addEventListener('pointercancel', finish);
+
+  document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{ tool=b.dataset.tool; document.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b)); });
+  document.querySelectorAll('[data-color]').forEach(b=>b.onclick=()=>{ color=b.dataset.color; document.querySelectorAll('[data-color]').forEach(x=>x.classList.toggle('active',x===b)); });
+  document.getElementById('width').oninput=e=> width=+e.target.value;
+  document.getElementById('undo').onclick=()=>{ if(objects.length){ redoStack.push(objects.pop()); redraw(); }};
+  document.getElementById('redo').onclick=()=>{ if(redoStack.length){ objects.push(redoStack.pop()); redraw(); }};
+  document.getElementById('grid').onclick=()=> stage.classList.toggle('grid');
+  document.getElementById('present').onclick=()=> app.classList.toggle('present');
+  document.getElementById('clear').onclick=()=>{ if(confirm('Clear the board?')){objects=[]; redoStack=[]; redraw();} };
+  document.getElementById('exportPng').onclick=()=>{ const a=document.createElement('a'); a.download='bridgeboard.png'; a.href=canvas.toDataURL('image/png'); a.click(); showToast('PNG exported'); };
+  document.getElementById('exportJson').onclick=()=>{ const data=JSON.stringify({app:'Bridgeboard',version:'0.1',objects},null,2); const blob=new Blob([data],{type:'application/json'}); const a=document.createElement('a'); a.download='bridgeboard-session.json'; a.href=URL.createObjectURL(blob); a.click(); URL.revokeObjectURL(a.href); showToast('JSON exported'); };
+  document.getElementById('loadJson').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const data=JSON.parse(r.result); objects=data.objects||[]; redoStack=[]; redraw(); showToast('Session loaded'); }catch(err){ alert('Could not load JSON'); }}; r.readAsText(f); };
+  document.addEventListener('keydown', e=>{ if(e.key==='p'||e.key==='P') app.classList.toggle('present'); if(e.key==='Escape') app.classList.remove('present'); if((e.ctrlKey||e.metaKey)&&e.key==='z') document.getElementById('undo').click(); });
+
+  function addText(text,x,y,size=24,c='#f3eee7'){ objects.push({type:'text',text,x,y,color:c,width:3,size}); }
+  function addLine(x1,y1,x2,y2,c='#4fb7aa',w=3,type='line'){ objects.push({type,color:c,width:w,x1,y1,x2,y2}); }
+  function addRect(x,y,w,h,c='#a9afab'){ objects.push({type:'rect',color:c,width:2,x,y,w,h}); }
+  function template(name){
+    const r=stage.getBoundingClientRect(); objects=[]; redoStack=[];
+    if(name==='flywheel'){
+      addText('AI ADOPTION FLYWHEEL',60,70,28,'#f3eee7');
+      const cx=r.width/2, cy=r.height/2+20, rad=Math.min(r.width,r.height)*.25;
+      const items=['Use cases','Reality','Foundation','Governance','Scale','Learning'];
+      items.forEach((t,i)=>{ const a=-Math.PI/2+i*Math.PI*2/items.length; const x=cx+Math.cos(a)*rad, y=cy+Math.sin(a)*rad; objects.push({type:'circle',color:'#4fb7aa',width:2,x:x-70,y:y-34,w:140,h:68}); addText(t,x-46,y+8,20,'#f3eee7'); const b=a+Math.PI*2/items.length*.74; addLine(x+Math.cos(a)*58,y+Math.sin(a)*28,cx+Math.cos(b)*rad,cy+Math.sin(b)*rad,'#d7a64b',3,'arrow'); });
+      addText('Make work visible → make governance usable → make AI scalable',cx-255,cy+8,22,'#a9afab');
+    }
+    if(name==='matrix'){
+      addText('RISK / VALUE MATRIX',60,70,28,'#f3eee7'); const x=120,y=120,w=r.width-240,h=r.height-230; addLine(x,y+h,x+w,y+h,'#a9afab',3,'arrow'); addLine(x,y+h,x,y,'#a9afab',3,'arrow'); addText('Organisational value →',x+w-260,y+h+44,20,'#a9afab'); addText('Governance risk ↑',x-65,y-24,20,'#a9afab'); addLine(x+w/2,y,x+w/2,y+h,'rgba(255,255,255,.35)',2); addLine(x,y+h/2,x+w,y+h/2,'rgba(255,255,255,.35)',2); addText('Start here',x+w*.68,y+h*.72,26,'#4fb7aa'); addText('Avoid theatre',x+w*.13,y+h*.72,22,'#a9afab'); addText('Needs architecture',x+w*.64,y+h*.22,22,'#d7a64b'); addText('Question hard',x+w*.12,y+h*.22,22,'#d45c50');
+    }
+    if(name==='map'){
+      addText('AI ADOPTION ARCHITECTURE MAP',60,70,28,'#f3eee7'); const pad=90, gap=20, w=(r.width-pad*2-gap)/2, h=(r.height-170-gap)/2; [['People','Enablement, roles, trust'],['Work','Processes, decisions, routines'],['Data','Knowledge, documents, access'],['Governance','Risk, policy, review']].forEach((it,i)=>{ const x=pad+(i%2)*(w+gap), y=120+Math.floor(i/2)*(h+gap); addRect(x,y,w,h,'#4fb7aa'); addText(it[0],x+28,y+48,28,'#f3eee7'); addText(it[1],x+28,y+82,19,'#a9afab'); });
+    }
+    redraw(); showToast('Template added');
+  }
+  document.querySelectorAll('[data-template]').forEach(b=>b.onclick=()=>template(b.dataset.template));
+  window.addEventListener('resize', resize); resize(); setTimeout(()=>template('flywheel'), 250);
+})();
+</script>
+</body>
+</html>
