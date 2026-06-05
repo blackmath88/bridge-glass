@@ -1,0 +1,466 @@
+```json
+{
+  "project": {
+    "name": "Bridgeboard",
+    "working_title": "Bridgeboard — Glassboard for Bridge Work AI Lab",
+    "owner_brand": "Bridge Work",
+    "context": {
+      "brand_positioning": "Bridge Work is a premium Swiss AI adoption and governance translation practice. It helps organisations turn AI possibility into real, governed work by bridging technology, leadership, governance and workforce reality.",
+      "brand_fit": "Bridgeboard supports Bridge Work's core promise by making complex AI adoption, governance and transformation thinking visible in live sessions.",
+      "source_brand_principles": [
+        "calm confidence",
+        "premium editorial minimalism",
+        "practical transformation",
+        "not hype",
+        "not generic AI fluff",
+        "strategic but usable"
+      ]
+    },
+    "product_thesis": "Most AI transformation discussions stay abstract. Bridgeboard turns strategy, governance, operating models and adoption logic into visible live sketches that can be presented, exported and reused.",
+    "core_idea": {
+      "one_liner": "A dark-mode glassboard for live AI adoption explanation, sketching and presentation.",
+      "long_description": "Bridgeboard is a web-based visual thinking module for the Bridge Work AI Lab. It allows a presenter to sketch on a premium black-glass canvas, either directly on the presenting device or remotely from an Android phone with Samsung S Pen input. The notebook presents the board; the phone acts as a remote pen controller. The result can be exported as PNG, PDF or JSON session data."
+    },
+    "target_use_cases": [
+      {
+        "name": "Live client explanation",
+        "description": "Use Bridgeboard during consulting conversations to sketch AI adoption models, governance flows, stakeholder systems and operating models live."
+      },
+      {
+        "name": "Workshop facilitation",
+        "description": "Use predefined Bridge Work templates to guide participants through AI readiness, use-case framing, risk/value mapping and governance translation."
+      },
+      {
+        "name": "LinkedIn / thought leadership content",
+        "description": "Create visually distinctive black-background sketches that can be exported as images or short videos for public content."
+      },
+      {
+        "name": "Lab module",
+        "description": "Use Bridgeboard as one module inside the Bridge Work AI Lab, alongside other AI adoption, M365 readiness and governance tools."
+      }
+    ],
+    "visual_direction": {
+      "style_keywords": [
+        "black glassboard",
+        "IBM explainer video feeling",
+        "Apple keynote minimalism",
+        "premium strategy room",
+        "dark consulting elegance",
+        "frosted glass UI",
+        "thin luminous strokes",
+        "calm executive aesthetic"
+      ],
+      "avoid": [
+        "generic SaaS dashboard",
+        "childish whiteboard look",
+        "overly colorful UI",
+        "Miro clone feeling",
+        "heavy buttons",
+        "corporate PowerPoint look"
+      ],
+      "colors": {
+        "background": "#050505",
+        "surface": "rgba(255,255,255,0.04)",
+        "primary_stroke": "#F4F1E8",
+        "secondary_stroke": "#8FBFB7",
+        "muted_grey": "#8A8A8A",
+        "accent": "#1A7A6D",
+        "amber": "#D6A85A"
+      },
+      "typography": {
+        "direction": "modern, editorial, understated",
+        "preferred_fonts": [
+          "Inter",
+          "SF Pro",
+          "system-ui",
+          "sans-serif"
+        ]
+      }
+    },
+    "technical_architecture": {
+      "hosting": {
+        "platform": "Cloudflare Pages",
+        "role": "Hosts the static frontend application.",
+        "routes": [
+          "/lab/bridgeboard",
+          "/lab/bridgeboard/host",
+          "/lab/bridgeboard/remote/:sessionId"
+        ]
+      },
+      "realtime_layer": {
+        "platform": "Cloudflare Workers + Durable Objects",
+        "role": "Provides realtime sync between host screen and remote pen controller.",
+        "communication": "WebSockets",
+        "session_model": "Each live board session is represented by one Durable Object instance."
+      },
+      "frontend": {
+        "recommended_stack": "React + Vite + TypeScript",
+        "rendering": "HTML Canvas with structured vector-like stroke data",
+        "input_api": "Pointer Events for mouse, touch and pen input",
+        "state_model": "Strokes and objects are stored as structured JSON, not only pixels."
+      },
+      "storage": {
+        "mvp": "In-memory Durable Object state during live sessions plus local browser export/import.",
+        "later_optional": [
+          "Cloudflare R2 for saved board sessions",
+          "D1 for session metadata",
+          "KV for lightweight public templates"
+        ]
+      }
+    },
+    "mvp_scope": {
+      "version": "0.1",
+      "goal": "Create a working Cloudflare-hosted prototype where a notebook presents a black glassboard and an Android phone with S Pen can act as a remote drawing controller.",
+      "features": [
+        {
+          "id": "canvas_drawing",
+          "name": "Canvas drawing",
+          "priority": "must",
+          "description": "User can draw smooth strokes with mouse, touch or pen."
+        },
+        {
+          "id": "presentation_mode",
+          "name": "Presentation mode",
+          "priority": "must",
+          "description": "Hide all UI controls and show only the black glassboard canvas with optional Bridge Work wordmark."
+        },
+        {
+          "id": "basic_tools",
+          "name": "Basic tools",
+          "priority": "must",
+          "tools": [
+            "pen",
+            "eraser",
+            "text",
+            "arrow",
+            "rectangle",
+            "circle",
+            "undo",
+            "redo",
+            "clear board"
+          ]
+        },
+        {
+          "id": "export_png",
+          "name": "PNG export",
+          "priority": "must",
+          "description": "Export current board as a high-resolution PNG."
+        },
+        {
+          "id": "export_json",
+          "name": "JSON export/import",
+          "priority": "must",
+          "description": "Export and import board state as JSON."
+        },
+        {
+          "id": "remote_pen_mode",
+          "name": "Remote pen mode",
+          "priority": "must",
+          "description": "Notebook creates a live session and displays a QR code. Phone joins as pen controller. Strokes drawn on phone appear live on notebook."
+        },
+        {
+          "id": "qr_join",
+          "name": "QR session join",
+          "priority": "must",
+          "description": "Host screen generates QR code linking to remote controller route."
+        },
+        {
+          "id": "templates",
+          "name": "Bridge Work templates",
+          "priority": "should",
+          "description": "Initial templates for common Bridge Work facilitation patterns."
+        },
+        {
+          "id": "pdf_export",
+          "name": "PDF export",
+          "priority": "should",
+          "description": "Export board or multi-page board as PDF."
+        }
+      ]
+    },
+    "remote_pen_mode": {
+      "concept": "Notebook is the host and presentation screen. Android phone is the remote pen surface.",
+      "flow": [
+        "Presenter opens /lab/bridgeboard/host on notebook.",
+        "Host creates a new session ID.",
+        "Host connects to Cloudflare Worker WebSocket.",
+        "Host displays QR code.",
+        "Presenter scans QR code with Android phone.",
+        "Phone opens /lab/bridgeboard/remote/:sessionId.",
+        "Phone connects to same WebSocket session.",
+        "Phone captures S Pen input using Pointer Events.",
+        "Phone sends normalized stroke events to the Durable Object.",
+        "Host receives stroke events and renders them on the large presentation canvas.",
+        "Host can export final board."
+      ],
+      "input_modes": [
+        {
+          "name": "Mirrored board mode",
+          "description": "Phone shows a scaled preview of the board. User draws directly where content appears. Best for precision.",
+          "recommended_for_mvp": true
+        },
+        {
+          "name": "Trackpad mode",
+          "description": "Phone acts as a blank input pad. Movement maps to host canvas. Better for presentation ergonomics but less precise.",
+          "recommended_for_mvp": false
+        }
+      ],
+      "coordinate_strategy": {
+        "description": "All remote pen coordinates should be normalized from 0 to 1 instead of pixel-based.",
+        "example": {
+          "x": 0.34,
+          "y": 0.62,
+          "pressure": 0.72
+        },
+        "reason": "This allows different phone and notebook screen sizes to render the same stroke correctly."
+      }
+    },
+    "data_model": {
+      "session": {
+        "sessionId": "string",
+        "createdAt": "ISO timestamp",
+        "updatedAt": "ISO timestamp",
+        "hostConnected": "boolean",
+        "remoteConnected": "boolean",
+        "board": "BoardState"
+      },
+      "board_state": {
+        "version": "string",
+        "background": "string",
+        "templateId": "string | null",
+        "objects": "BoardObject[]"
+      },
+      "stroke_object": {
+        "id": "string",
+        "type": "stroke",
+        "tool": "pen | eraser",
+        "color": "string",
+        "width": "number",
+        "points": [
+          {
+            "x": "number between 0 and 1",
+            "y": "number between 0 and 1",
+            "pressure": "number between 0 and 1",
+            "timestamp": "number"
+          }
+        ]
+      },
+      "shape_object": {
+        "id": "string",
+        "type": "rectangle | circle | arrow | text",
+        "x": "number between 0 and 1",
+        "y": "number between 0 and 1",
+        "width": "number between 0 and 1",
+        "height": "number between 0 and 1",
+        "color": "string",
+        "text": "string | optional"
+      },
+      "websocket_messages": [
+        {
+          "type": "join",
+          "role": "host | remote",
+          "sessionId": "string"
+        },
+        {
+          "type": "stroke:start",
+          "stroke": "StrokeObject"
+        },
+        {
+          "type": "stroke:update",
+          "strokeId": "string",
+          "points": "Point[]"
+        },
+        {
+          "type": "stroke:end",
+          "strokeId": "string"
+        },
+        {
+          "type": "object:add",
+          "object": "BoardObject"
+        },
+        {
+          "type": "object:update",
+          "object": "BoardObject"
+        },
+        {
+          "type": "object:delete",
+          "objectId": "string"
+        },
+        {
+          "type": "board:clear"
+        },
+        {
+          "type": "board:sync",
+          "board": "BoardState"
+        }
+      ]
+    },
+    "cloudflare_components": {
+      "pages": {
+        "purpose": "Serve the React frontend.",
+        "build_command": "npm run build",
+        "output_directory": "dist"
+      },
+      "worker": {
+        "purpose": "Route WebSocket connections and session requests.",
+        "responsibilities": [
+          "create session IDs",
+          "route clients to Durable Object by session ID",
+          "upgrade requests to WebSockets",
+          "serve lightweight session API endpoints"
+        ],
+        "routes": [
+          "/api/session/create",
+          "/api/session/:sessionId/connect"
+        ]
+      },
+      "durable_object": {
+        "name": "BridgeboardSession",
+        "purpose": "Maintain realtime board state for one active session.",
+        "responsibilities": [
+          "hold connected host and remote clients",
+          "broadcast stroke events",
+          "store current board state in memory",
+          "send full board sync to newly joined clients",
+          "clean up inactive sessions"
+        ]
+      },
+      "optional_future": {
+        "r2": "Store exported PNG/PDF/session JSON files.",
+        "d1": "Store saved session metadata.",
+        "kv": "Store public templates and configuration."
+      }
+    },
+    "initial_templates": [
+      {
+        "id": "ai_adoption_flywheel",
+        "name": "AI Adoption Flywheel",
+        "description": "Use cases create momentum, momentum reveals reality, reality demands foundation, foundation enables governance, governance enables scale."
+      },
+      {
+        "id": "use_case_governance_people_data",
+        "name": "Use Case / Governance / People / Data Map",
+        "description": "Four-zone map for explaining why AI adoption is not only a tool question."
+      },
+      {
+        "id": "risk_value_matrix",
+        "name": "Risk vs Value Matrix",
+        "description": "Simple 2x2 matrix for prioritising AI use cases."
+      },
+      {
+        "id": "m365_readiness_map",
+        "name": "M365 / Copilot Readiness Map",
+        "description": "Maps data quality, permissions, SharePoint structure, Teams governance, security and user enablement."
+      },
+      {
+        "id": "human_in_the_loop_flow",
+        "name": "Human-in-the-loop Flow",
+        "description": "Shows where humans review, approve, correct or escalate AI-supported work."
+      }
+    ],
+    "ux_requirements": {
+      "host_view": [
+        "Full screen black canvas",
+        "Floating frosted-glass toolbar",
+        "Start remote pen button",
+        "QR code modal",
+        "Presentation mode toggle",
+        "Export controls",
+        "Template selector",
+        "Small Bridge Work wordmark"
+      ],
+      "remote_view": [
+        "Mobile-first layout",
+        "Minimal controls",
+        "Large drawing surface",
+        "Connection status",
+        "Tool selector",
+        "Stroke width selector",
+        "Color selector",
+        "Optional board preview",
+        "Prevent accidental page scrolling while drawing"
+      ],
+      "performance": [
+        "Drawing must feel immediate on phone.",
+        "Host rendering should update in near realtime.",
+        "Stroke events should be batched during movement to avoid flooding the WebSocket.",
+        "Canvas should support high-DPI screens."
+      ],
+      "accessibility": [
+        "Large enough mobile controls",
+        "Keyboard shortcuts on host",
+        "Clear connection status",
+        "No reliance on color alone for tool state"
+      ]
+    },
+    "security_and_privacy": {
+      "mvp": [
+        "Use random unguessable session IDs.",
+        "No login required for early prototype.",
+        "Session data lives only temporarily unless explicitly exported.",
+        "Do not store sensitive client content by default.",
+        "Add clear 'local/export only' messaging."
+      ],
+      "later": [
+        "Optional password/PIN for remote join.",
+        "Optional authenticated Bridge Work admin mode.",
+        "Session expiry.",
+        "Manual delete session.",
+        "Private saved boards."
+      ]
+    },
+    "success_criteria": [
+      "The app feels premium enough to use in a real Bridge Work client conversation.",
+      "Samsung S Pen input works on Android phone in Chrome or Samsung Internet.",
+      "Remote strokes appear on notebook host with low perceived latency.",
+      "A complete sketch can be exported as PNG and JSON.",
+      "The UI does not feel like a generic whiteboard app.",
+      "The module clearly supports Bridge Work's positioning around AI adoption and governance translation."
+    ],
+    "implementation_phases": [
+      {
+        "phase": "Phase 1 — Static Board",
+        "goal": "Polish current single-device HTML/React board and host it on Cloudflare Pages.",
+        "backend_required": false,
+        "deliverables": [
+          "Responsive glassboard UI",
+          "Pointer Events drawing",
+          "Tools",
+          "Templates",
+          "PNG export",
+          "JSON export/import"
+        ]
+      },
+      {
+        "phase": "Phase 2 — Cloudflare Remote Pen MVP",
+        "goal": "Add notebook host + Android phone remote input using Cloudflare Worker and Durable Object WebSockets.",
+        "backend_required": true,
+        "deliverables": [
+          "Host route",
+          "Remote route",
+          "Session creation",
+          "QR join",
+          "WebSocket sync",
+          "Remote pen drawing",
+          "Basic session cleanup"
+        ]
+      },
+      {
+        "phase": "Phase 3 — Lab-Ready Product",
+        "goal": "Turn prototype into a reliable Bridge Work Lab module.",
+        "backend_required": true,
+        "deliverables": [
+          "PDF export",
+          "Saved templates",
+          "Optional recording/export animation",
+          "Improved mobile preview",
+          "Brand polish",
+          "Session PIN",
+          "Documentation"
+        ]
+      }
+    ],
+    "developer_prompt": "Build Bridgeboard as a React/Vite/TypeScript app hosted on Cloudflare Pages, with a Cloudflare Worker and Durable Object for realtime remote pen input. The product should feel like a premium black-glass strategy whiteboard for Bridge Work AI Lab. Prioritise smooth pen input, beautiful dark UI, presentation mode, PNG/JSON export, and a host/remote session model where a notebook presents and an Android phone with Samsung S Pen acts as a remote drawing controller."
+  }
+}
+```
