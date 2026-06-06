@@ -1,0 +1,98 @@
+:root{
+  --black:#050505; --cream:#f0ebe3; --cream-dark:#c8c2b8;
+  --teal:#1a7a6d; --teal-dark:#0f5c52; --purple:#3d1f47; --rose:#d4416b;
+  /* Bridgeboard tool accent = cyan (connect) */
+  --accent:#2a8fa0; --accent-soft:rgba(42,143,160,.18); --accent-line:rgba(42,143,160,.4);
+  --panel:rgba(10,12,13,.72); --line:rgba(255,255,255,.12);
+  --text:var(--cream); --muted:rgba(255,255,255,.4); --ghost:rgba(255,255,255,.15);
+  --shadow:0 24px 70px rgba(0,0,0,.46);
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --font-mono:'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box}
+html,body,#root{width:100%;height:100%;margin:0}
+body{background:var(--black);color:var(--text);font-family:var(--font-body);
+  -webkit-font-smoothing:antialiased;overflow:hidden}
+::selection{background:var(--teal);color:var(--cream)}
+
+.app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr}
+
+header{position:relative;z-index:6;display:flex;align-items:center;justify-content:space-between;
+  padding:16px 22px 10px;gap:16px;pointer-events:none}
+.brand{pointer-events:auto;display:flex;align-items:center;gap:13px}
+.mark{width:30px;height:30px;flex:none}
+.brand .name{display:flex;flex-direction:column;line-height:1.15}
+.brand b{font-family:var(--font-display);font-size:15px;font-weight:500;letter-spacing:-.01em}
+.brand b .ai{color:var(--accent);font-weight:300}
+.brand small{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ghost);margin-top:3px}
+.status{pointer-events:auto;font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);border:1px solid var(--line);background:rgba(255,255,255,.04);
+  backdrop-filter:blur(16px);border-radius:999px;padding:8px 13px;white-space:nowrap}
+.status strong{color:var(--text);font-weight:400}
+
+main{position:relative;min-height:0}
+.stage{position:absolute;inset:0;margin:14px;border:1px solid var(--line);border-radius:24px;
+  background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.008)),var(--black);
+  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden}
+.stage.grid{background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);
+  background-size:46px 46px,46px 46px;background-color:var(--black)}
+canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.wordmark{position:absolute;right:24px;bottom:20px;font-family:var(--font-mono);
+  color:rgba(255,255,255,.28);font-size:9px;letter-spacing:.22em;text-transform:uppercase;pointer-events:none}
+.hint{position:absolute;left:26px;bottom:22px;font-family:var(--font-mono);
+  color:rgba(255,255,255,.22);font-size:9px;letter-spacing:.06em;pointer-events:none}
+
+.toolbar{position:absolute;z-index:8;left:50%;top:22px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:6px;padding:7px;border:1px solid var(--line);
+  background:var(--panel);backdrop-filter:blur(24px) saturate(1.2);border-radius:999px;
+  box-shadow:0 18px 50px rgba(0,0,0,.4)}
+.toolbar button,.toolbar label.file{appearance:none;border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.045);color:var(--text);border-radius:999px;padding:9px 12px;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  line-height:1;cursor:pointer;transition:.2s var(--ease);user-select:none}
+.toolbar button:hover,.toolbar label.file:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.2)}
+.toolbar button.active{background:var(--accent-soft);border-color:var(--accent-line);color:var(--cream);
+  box-shadow:inset 0 0 0 1px rgba(42,143,160,.14)}
+.toolbar button.danger:hover{background:rgba(212,65,107,.14);border-color:rgba(212,65,107,.34)}
+.divider{width:1px;height:22px;background:var(--line);margin:0 3px}
+.swatch{width:30px;height:30px;border-radius:50%;padding:0!important}
+.swatch span{display:block;width:13px;height:13px;border-radius:50%;margin:auto;border:1px solid rgba(255,255,255,.2)}
+.swatch.active{border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line)}
+input[type=range]{width:74px;accent-color:var(--accent)}
+input[type=file]{display:none}
+
+.panel{position:absolute;z-index:7;right:24px;top:88px;width:min(348px,calc(100vw - 48px));
+  border:1px solid var(--line);background:rgba(8,10,10,.74);backdrop-filter:blur(26px) saturate(1.15);
+  border-radius:22px;padding:18px;box-shadow:var(--shadow)}
+.panel h2{font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.2em;
+  font-weight:400;color:var(--muted);margin:0 0 12px}
+.panel p{color:var(--muted);font-size:12.5px;line-height:1.5;margin:8px 0;font-weight:300}
+.templates{display:grid;gap:8px;margin-top:6px}
+.templates button{text-align:left;border-radius:14px;padding:12px 13px;border:1px solid var(--line);
+  background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;transition:.2s var(--ease)}
+.templates button:hover{background:rgba(255,255,255,.07);border-color:var(--accent-line)}
+.templates b{display:block;font-size:12px;font-weight:500}
+.templates span{display:block;color:var(--muted);font-size:10.5px;margin-top:4px;font-weight:300}
+.loadnote{font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ghost);margin-top:12px}
+
+.present header,.present .toolbar,.present .panel,.present .hint{display:none}
+.present .stage{margin:0;border-radius:0;border:none}
+
+.toast{position:fixed;z-index:20;left:50%;bottom:28px;transform:translateX(-50%);
+  background:rgba(0,0,0,.72);border:1px solid var(--line);border-radius:999px;padding:10px 16px;
+  color:var(--text);font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  opacity:0;pointer-events:none;transition:.25s var(--ease)}
+.toast.show{opacity:1}
+
+@media(max-width:820px){
+  header{padding:12px 14px 4px}.status{display:none}
+  .stage{margin:8px;border-radius:18px}
+  .toolbar{left:10px;right:10px;top:auto;bottom:10px;transform:none;overflow:auto;justify-content:flex-start;border-radius:18px}
+  .panel{display:none}.hint,.wordmark{display:none}
+  input[type=range]{width:60px}
+}
