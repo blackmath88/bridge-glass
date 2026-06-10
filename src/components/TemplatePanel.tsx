@@ -20,7 +20,7 @@ export function TemplatePanel({ onLoad }: Props) {
 
   return (
     <aside className="panel">
-      <h2>Templates · bridge-glass</h2>
+      <h2>Templates · bridge-glass_content</h2>
       <p>Reusable Bridge Work facilitation canvases, loaded live from the template repo.</p>
       <div className="templates">
         {loading && <span className="loadnote">Loading from repo…</span>}
@@ -32,7 +32,7 @@ export function TemplatePanel({ onLoad }: Props) {
           </button>
         ))}
       </div>
-      <p className="loadnote">Source of truth · blackmath88/bridge-glass</p>
+      <p className="loadnote">Source of truth · blackmath88/bridge-glass_content</p>
     </aside>
   )
 }

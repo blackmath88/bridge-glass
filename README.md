@@ -30,7 +30,7 @@ npm run preview    # preview the production build
 
 ## Templates
 
-The Template panel fetches `index.json` from `bridge-glass/bridgeboard/templates/` and renders each on demand. Coordinates are normalized `0..1` in the repo and scaled to the live stage size on load, so the same template renders correctly on phone, notebook and projector.
+The Template panel fetches `index.json` from `bridge-glass_content/bridgeboard/templates/` and renders each on demand. Coordinates are normalized `0..1` in the repo and scaled to the live stage size on load, so the same template renders correctly on phone, notebook and projector.
 
 To point at a different template source, set `VITE_TEMPLATE_BASE` (see `.env.example`).
 

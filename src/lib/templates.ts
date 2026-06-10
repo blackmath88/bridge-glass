@@ -4,7 +4,7 @@ import type { Template, TemplateIndex, BoardObject } from './types'
 // Override at build time with VITE_TEMPLATE_BASE for a CDN or proxy.
 const BASE =
   import.meta.env.VITE_TEMPLATE_BASE ??
-  'https://raw.githubusercontent.com/blackmath88/bridge-glass/main/bridgeboard/templates'
+  'https://raw.githubusercontent.com/blackmath88/bridge-glass_content/main/bridgeboard/templates'
 
 export async function fetchTemplateIndex(): Promise<TemplateIndex> {
   const res = await fetch(`${BASE}/index.json`, { cache: 'no-cache' })
