@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BoardObject, Tool } from '../lib/types'
-import { redraw, makeShape } from '../lib/canvas'
+import { redraw, makeShape, STICKY_COLORS } from '../lib/canvas'
 import { fetchTemplate, denormalize, markNormalized } from '../lib/templates'
 import { SignalMark } from './SignalMark'
 import { Toolbar } from './Toolbar'
@@ -11,6 +11,7 @@ import { TOOLS } from './Toolbar'
 import { History } from '../lib/history'
 
 export function Board() {
+  type Editor = { object: BoardObject; isNew: boolean; before?: BoardObject }
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<HTMLDivElement>(null)
@@ -31,6 +32,7 @@ export function Board() {
   const [width, setWidth] = useState(4)
   const [device, setDevice] = useState('mouse / touch / pen')
   const [toast, setToast] = useState('')
+  const [editor, setEditor] = useState<Editor | null>(null)
   const [, setHistoryVersion] = useState(0)
 
   if (!history.current) history.current = new History(() => setHistoryVersion((v) => v + 1))
@@ -75,6 +77,41 @@ export function Board() {
     paint()
   }
 
+  const openNewEditor = (o: BoardObject) => {
+    objects.current.push(o)
+    setEditor({ object: o, isNew: true })
+    paint()
+  }
+
+  const openExistingEditor = (o: BoardObject) => setEditor({ object: o, isNew: false, before: clone(o) })
+
+  const commitEditor = () => {
+    if (!editor) return
+    const after = clone(editor.object)
+    if (editor.isNew) {
+      history.current!.push({
+        label: `add ${after.type}`,
+        undo: () => { objects.current = objects.current.filter((o) => o.id !== after.id); paint() },
+        redo: () => { objects.current.push(clone(after)); paint() },
+      })
+    } else {
+      const before = clone(editor.before!)
+      history.current!.push({
+        label: `edit ${after.type}`,
+        undo: () => { const o = objects.current.find((item) => item.id === after.id); if (o) Object.assign(o, clone(before)); paint() },
+        redo: () => { const o = objects.current.find((item) => item.id === after.id); if (o) Object.assign(o, clone(after)); paint() },
+      })
+    }
+    setEditor(null); paint()
+  }
+
+  const cancelEditor = () => {
+    if (!editor) return
+    if (editor.isNew) objects.current = objects.current.filter((o) => o.id !== editor.object.id)
+    else Object.assign(editor.object, clone(editor.before!))
+    setEditor(null); paint()
+  }
+
   const translate = (o: BoardObject, dx: number, dy: number) => {
     if (o.points) o.points.forEach((p) => { p.x += dx; p.y += dy })
     if (o.x != null) o.x += dx
@@ -107,8 +144,11 @@ export function Board() {
         paint(); return
       }
       if (tool === 'text') {
-        const text = prompt('Text on glass:')
-        if (text) add({ id: uid(), type: 'text', text, x: p.x, y: p.y, color, width, size: 28 })
+        openNewEditor({ id: uid(), type: 'text', text: '', x: p.x, y: p.y, color, width, size: 28 })
+        drawing.current = false; return
+      }
+      if (tool === 'sticky') {
+        openNewEditor({ id: uid(), type: 'sticky', text: '', x: p.x, y: p.y, w: 160, h: 120, color: STICKY_COLORS[1], width: 1 })
         drawing.current = false; return
       }
       if (tool === 'pen' || tool === 'eraser')
@@ -148,15 +188,22 @@ export function Board() {
       if (!current.current) return
       add(current.current); current.current = null; drawing.current = false
     }
+    const doubleClick = (e: MouseEvent) => {
+      if (ref.current.tool !== 'select') return
+      const r = c.getBoundingClientRect(), o = hitTest(objects.current, e.clientX - r.left, e.clientY - r.top, 6)
+      if (o?.type === 'text' || o?.type === 'sticky') openExistingEditor(o)
+    }
     c.addEventListener('pointerdown', down)
     c.addEventListener('pointermove', move)
     c.addEventListener('pointerup', finish)
     c.addEventListener('pointercancel', finish)
+    c.addEventListener('dblclick', doubleClick)
     return () => {
       c.removeEventListener('pointerdown', down)
       c.removeEventListener('pointermove', move)
       c.removeEventListener('pointerup', finish)
       c.removeEventListener('pointercancel', finish)
+      c.removeEventListener('dblclick', doubleClick)
     }
   }, [paint])
 
@@ -262,6 +309,26 @@ export function Board() {
       <main>
         <div className="stage grid" ref={stageRef}>
           <canvas ref={canvasRef} />
+          {editor && <textarea
+            autoFocus
+            className={`inline-editor ${editor.object.type}`}
+            value={editor.object.text || ''}
+            style={{
+              left: editor.object.x,
+              top: editor.object.type === 'text' ? editor.object.y! - (editor.object.size || 28) : editor.object.y,
+              width: editor.object.type === 'sticky' ? editor.object.w : 260,
+              height: editor.object.type === 'sticky' ? editor.object.h : 48,
+              color: editor.object.type === 'sticky' ? '#050505' : editor.object.color,
+              background: editor.object.type === 'sticky' ? editor.object.color : 'rgba(5,5,5,.82)',
+              fontSize: editor.object.type === 'sticky' ? 15 : editor.object.size,
+            }}
+            onChange={(e) => { editor.object.text = e.target.value; setEditor({ ...editor }); paint() }}
+            onBlur={(e) => { if (e.currentTarget.dataset.cancelled !== 'true') commitEditor() }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') { e.currentTarget.dataset.cancelled = 'true'; e.preventDefault(); e.stopPropagation(); cancelEditor() }
+              else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEditor() }
+            }}
+          />}
           <div className="wordmark">bridge-work.ai</div>
           <div className="hint">Draw with mouse, touch or Samsung S Pen · P to present · Esc to exit</div>
         </div>

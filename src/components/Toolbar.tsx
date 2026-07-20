@@ -1,6 +1,6 @@
 import type { Tool } from '../lib/types'
 
-export const TOOLS: Tool[] = ['select', 'pen', 'eraser', 'text', 'line', 'arrow', 'rect', 'circle']
+export const TOOLS: Tool[] = ['select', 'pen', 'eraser', 'text', 'line', 'arrow', 'rect', 'circle', 'sticky']
 const COLORS = [
   { hex: '#f0ebe3', title: 'Cream' },
   { hex: '#2a8fa0', title: 'Cyan' },
@@ -23,7 +23,7 @@ export function Toolbar(p: Props) {
     <div className="toolbar" role="toolbar">
       {TOOLS.map((t) => (
         <button key={t} className={p.tool === t ? 'active' : ''} onClick={() => p.onTool(t)}>
-          {t === 'rect' ? 'Rect' : t[0].toUpperCase() + t.slice(1)}
+          {t === 'sticky' ? '▰ Sticky' : t === 'rect' ? 'Rect' : t[0].toUpperCase() + t.slice(1)}
         </button>
       ))}
       <div className="divider" />

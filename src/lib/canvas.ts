@@ -1,6 +1,25 @@
 import type { BoardObject } from './types'
 import { objectBounds } from './hittest'
 
+// Mirrored from the token palette in src/styles/index.css (the source of truth).
+export const STICKY_COLORS = ['#1a7a6d', '#f0ebe3', '#d4416b', '#2a8fa0'] as const
+export const STICKY_TEXT_COLOR = '#050505'
+
+export function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const lines: string[] = []
+  for (const paragraph of text.split('\n')) {
+    const words = paragraph.split(/\s+/).filter(Boolean)
+    let line = ''
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word
+      if (line && ctx.measureText(test).width > maxWidth) { lines.push(line); line = word }
+      else line = test
+    }
+    lines.push(line)
+  }
+  return lines
+}
+
 export function drawObject(
   ctx: CanvasRenderingContext2D,
   o: BoardObject,
@@ -50,6 +69,17 @@ export function drawObject(
   if (o.type === 'text') {
     ctx.font = `${o.size || 26}px Inter, system-ui, sans-serif`
     ctx.fillText(o.text || '', o.x!, o.y!)
+  }
+  if (o.type === 'sticky') {
+    const x = o.x!, y = o.y!, w = o.w || 160, h = o.h || 120
+    ctx.fillStyle = o.color
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.fill()
+    ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.clip()
+    ctx.strokeStyle = 'rgba(0,0,0,.08)'; ctx.lineWidth = 8
+    ctx.beginPath(); ctx.moveTo(x + 4, y + h - 4); ctx.lineTo(x + w - 4, y + h - 4); ctx.stroke()
+    ctx.fillStyle = STICKY_TEXT_COLOR; ctx.font = '15px Inter, system-ui, sans-serif'
+    wrapText(ctx, o.text || '', w - 16).forEach((line, i) => ctx.fillText(line, x + 8, y + 23 + i * 19))
+    ctx.restore()
   }
   ctx.restore()
 }
