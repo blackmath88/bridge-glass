@@ -9,6 +9,8 @@ import { hitTest } from '../lib/hittest'
 import { uid } from '../lib/uid'
 import { TOOLS } from './Toolbar'
 import { History } from '../lib/history'
+import { BoardDrawer } from './BoardDrawer'
+import { createBoard, deleteBoard, duplicateBoard, listBoards, loadBoard, migrateLegacySession, renameBoard, saveBoard, type BoardMeta } from '../lib/store'
 
 export function Board() {
   type Editor = { object: BoardObject; isNew: boolean; before?: BoardObject }
@@ -26,6 +28,7 @@ export function Board() {
   const dragOrigin = useRef<{ x: number; y: number } | null>(null)
   const dragDelta = useRef({ x: 0, y: 0 })
   const history = useRef<History | null>(null)
+  const initialized = useRef(false)
 
   const [tool, setTool] = useState<Tool>('pen')
   const [color, setColor] = useState('#f0ebe3')
@@ -33,7 +36,10 @@ export function Board() {
   const [device, setDevice] = useState('mouse / touch / pen')
   const [toast, setToast] = useState('')
   const [editor, setEditor] = useState<Editor | null>(null)
-  const [, setHistoryVersion] = useState(0)
+  const [historyVersion, setHistoryVersion] = useState(0)
+  const [boards, setBoards] = useState<BoardMeta[]>([])
+  const [currentBoard, setCurrentBoard] = useState<BoardMeta | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   if (!history.current) history.current = new History(() => setHistoryVersion((v) => v + 1))
 
@@ -111,6 +117,39 @@ export function Board() {
     else Object.assign(editor.object, clone(editor.before!))
     setEditor(null); paint()
   }
+
+  const refreshBoards = () => setBoards(listBoards())
+
+  const switchBoard = (id: string) => {
+    try {
+      const board = loadBoard(id)
+      if (!board) return
+      objects.current = clone(board.objects).map((o) => ({ ...o, id: o.id || uid() }))
+      selectedId.current = null; current.current = null
+      setCurrentBoard(board.meta); history.current!.clear(); setDrawerOpen(false); paint()
+    } catch (error) { showToast(error instanceof Error ? error.message : 'Board load failed') }
+  }
+
+  useEffect(() => {
+    try {
+      let index = listBoards()
+      if (!index.length) index = [migrateLegacySession().meta]
+      setBoards(index); switchBoard(index[0].id); initialized.current = true
+    } catch (error) { showToast(error instanceof Error ? error.message : 'Storage unavailable') }
+    // Initial board load happens once; switching is user-driven.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (!initialized.current || !currentBoard) return
+    const timer = window.setTimeout(() => {
+      try { const saved = saveBoard(currentBoard.id, currentBoard.name, objects.current); setCurrentBoard(saved.meta); refreshBoards() }
+      catch (error) { showToast(error instanceof Error ? error.message : 'Autosave failed') }
+    }, 800)
+    return () => window.clearTimeout(timer)
+    // History changes are the autosave signal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyVersion])
 
   const translate = (o: BoardObject, dx: number, dy: number) => {
     if (o.points) o.points.forEach((p) => { p.x += dx; p.y += dy })
@@ -299,10 +338,10 @@ export function Board() {
       <header>
         <div className="brand">
           <SignalMark />
-          <div className="name">
+          <button className="name board-title" onClick={() => setDrawerOpen(true)}>
             <b>Bridgeboard<span className="ai" /></b>
-            <small>Bridge Work · AI Lab</small>
-          </div>
+            <small>{currentBoard?.name || 'Bridge Work · AI Lab'}</small>
+          </button>
         </div>
         <div className="status">Input <strong>{device}</strong></div>
       </header>
@@ -342,6 +381,15 @@ export function Board() {
           onExportPng={exportPng} onExportJson={exportJson} onLoadJson={loadJson} onClear={clear}
         />
         <TemplatePanel onLoad={loadTemplate} />
+        <BoardDrawer
+          open={drawerOpen} boards={boards} currentId={currentBoard?.id || null} onClose={() => setDrawerOpen(false)} onSwitch={switchBoard}
+          onNew={() => { try { const b = createBoard(`Board ${boards.length + 1}`); refreshBoards(); switchBoard(b.meta.id) } catch (e) { showToast(String(e)) } }}
+          onRename={(id, name) => { try { const b = renameBoard(id, name); if (id === currentBoard?.id) setCurrentBoard(b.meta); refreshBoards() } catch (e) { showToast(String(e)) } }}
+          onDuplicate={(id) => { try { duplicateBoard(id); refreshBoards() } catch (e) { showToast(String(e)) } }}
+          onDelete={(id) => { try { deleteBoard(id); const remaining = listBoards(); if (!remaining.length) { const b = createBoard('Board 1'); remaining.push(b.meta) } setBoards(remaining); if (id === currentBoard?.id) switchBoard(remaining[0].id) } catch (e) { showToast(String(e)) } }}
+          onExport={(id) => { const b = loadBoard(id); if (!b) return; const a = document.createElement('a'); a.download = `${b.meta.name}.json`; a.href = URL.createObjectURL(new Blob([JSON.stringify(b, null, 2)], { type: 'application/json' })); a.click(); URL.revokeObjectURL(a.href) }}
+          onImport={(file) => { const r = new FileReader(); r.onload = () => { try { const data = JSON.parse(String(r.result)); const b = createBoard(data.meta?.name ? `${data.meta.name} import` : file.name.replace(/\.json$/i, ''), data.objects || []); refreshBoards(); switchBoard(b.meta.id) } catch (e) { showToast('Could not import board') } }; r.readAsText(file) }}
+        />
         <div className={`toast${toast ? ' show' : ''}`}>{toast}</div>
       </main>
     </div>
