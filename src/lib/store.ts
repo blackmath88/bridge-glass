@@ -1,5 +1,5 @@
-import type { BoardObject } from './types'
-import { uid } from './uid'
+import type { BoardObject } from './types.js'
+import { uid } from './uid.js'
 
 export const INDEX_KEY = 'bridgeboard:index'
 const BOARD_KEY = 'bridgeboard:board:'

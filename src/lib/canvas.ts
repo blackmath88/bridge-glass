@@ -1,5 +1,6 @@
-import type { BoardObject } from './types'
-import { objectBounds } from './hittest'
+import type { BoardObject } from './types.js'
+import { objectBounds } from './hittest.js'
+import type { Viewport } from './viewport.js'
 
 // Mirrored from the token palette in src/styles/index.css (the source of truth).
 export const STICKY_COLORS = ['#1a7a6d', '#f0ebe3', '#d4416b', '#2a8fa0'] as const
@@ -89,9 +90,13 @@ export function redraw(
   objects: BoardObject[],
   current: BoardObject | null,
   selected: BoardObject | null = null,
-  eraserCursor: { x: number; y: number; radius: number } | null = null
+  eraserCursor: { x: number; y: number; radius: number } | null = null,
+  viewport: Viewport = { ox: 0, oy: 0, scale: 1 }
 ) {
   ctx.clearRect(0, 0, ctx.canvas.width / dpr, ctx.canvas.height / dpr)
+  ctx.save()
+  ctx.translate(viewport.ox, viewport.oy)
+  ctx.scale(viewport.scale, viewport.scale)
   objects.forEach((o) => drawObject(ctx, o))
   if (current) drawObject(ctx, current, true)
   if (selected) {
@@ -103,6 +108,7 @@ export function redraw(
     ctx.strokeRect(b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2)
     ctx.restore()
   }
+  ctx.restore()
   if (eraserCursor) {
     ctx.save(); ctx.strokeStyle = 'rgba(240,235,227,.8)'; ctx.lineWidth = 1.5
     ctx.beginPath(); ctx.arc(eraserCursor.x, eraserCursor.y, eraserCursor.radius, 0, Math.PI * 2); ctx.stroke(); ctx.restore()

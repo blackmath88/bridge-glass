@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Template } from '../lib/types'
-import { fetchTemplate, fetchTemplateIndex } from '../lib/templates'
+import { fetchTemplateCached, fetchTemplateIndex } from '../lib/templates'
 
 interface Props {
   onLoad: (template: Template) => void
@@ -14,8 +14,14 @@ export function TemplatePanel({ onLoad, onNotice }: Props) {
 
   useEffect(() => {
     fetchTemplateIndex()
-      .then((idx) => Promise.all(idx.templates.map((entry) => fetchTemplate(entry.file))))
-      .then(setEntries)
+      .then(async (idx) => {
+        const loaded: Template[] = []
+        for (let i = 0; i < idx.templates.length; i += 3) {
+          loaded.push(...await Promise.all(idx.templates.slice(i, i + 3).map((entry) => fetchTemplateCached(entry.file))))
+          setEntries([...loaded])
+        }
+        return loaded
+      })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false))
   }, [])

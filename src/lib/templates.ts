@@ -1,4 +1,4 @@
-import type { Template, TemplateIndex, BoardObject } from './types'
+import type { Template, TemplateIndex, BoardObject } from './types.js'
 
 // Single source of truth: the bridge-glass content repo (raw GitHub).
 // Override at build time with VITE_TEMPLATE_BASE for a CDN or proxy.
@@ -16,6 +16,15 @@ export async function fetchTemplate(file: string): Promise<Template> {
   const res = await fetch(`${BASE}/${file}`, { cache: 'no-cache' })
   if (!res.ok) throw new Error(`template ${res.status}`)
   return res.json()
+}
+
+const templateCache = new Map<string, Promise<Template>>()
+export function fetchTemplateCached(file: string): Promise<Template> {
+  const cached = templateCache.get(file)
+  if (cached) return cached
+  const request = fetchTemplate(file).catch((error) => { templateCache.delete(file); throw error })
+  templateCache.set(file, request)
+  return request
 }
 
 // Convert a template's normalized objects into pixel-space objects for the

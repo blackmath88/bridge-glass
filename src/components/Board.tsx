@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BoardObject, Template, Tool } from '../lib/types'
-import { redraw, makeShape, STICKY_COLORS } from '../lib/canvas'
+import { drawObject, redraw, makeShape, STICKY_COLORS } from '../lib/canvas'
 import { denormalize, markNormalized } from '../lib/templates'
 import { SignalMark } from './SignalMark'
 import { Toolbar } from './Toolbar'
@@ -11,6 +11,9 @@ import { TOOLS } from './Toolbar'
 import { History } from '../lib/history'
 import { BoardDrawer } from './BoardDrawer'
 import { createBoard, deleteBoard, duplicateBoard, listBoards, loadBoard, migrateLegacySession, renameBoard, saveBoard, type BoardMeta } from '../lib/store'
+import { clone, nearestStickyColor, translateObject } from '../lib/objects'
+import { DEFAULT_VIEWPORT, screenToWorld, worldToScreen, zoomAt, type Viewport } from '../lib/viewport'
+import { objectBounds } from '../lib/hittest'
 
 export function Board() {
   type Editor = { object: BoardObject; isNew: boolean; before?: BoardObject }
@@ -33,6 +36,12 @@ export function Board() {
   const lastErase = useRef(0)
   const history = useRef<History | null>(null)
   const initialized = useRef(false)
+  const viewport = useRef<Viewport>({ ...DEFAULT_VIEWPORT })
+  const spaceDown = useRef(false)
+  const panning = useRef(false)
+  const panOrigin = useRef<{ x: number; y: number } | null>(null)
+  const activePointers = useRef(new Map<number, { x: number; y: number }>())
+  const pinch = useRef<{ distance: number; center: { x: number; y: number }; scale: number } | null>(null)
 
   const [tool, setTool] = useState<Tool>('pen')
   const [color, setColor] = useState('#f0ebe3')
@@ -45,6 +54,8 @@ export function Board() {
   const [currentBoard, setCurrentBoard] = useState<BoardMeta | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [pendingTemplate, setPendingTemplate] = useState<Template | null>(null)
+  const [zoomPercent, setZoomPercent] = useState(100)
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
 
   if (!history.current) history.current = new History(() => setHistoryVersion((v) => v + 1))
 
@@ -53,7 +64,7 @@ export function Board() {
   ref.current = { tool, color, width }
 
   const ctx = () => canvasRef.current!.getContext('2d')!
-  const paint = useCallback(() => redraw(ctx(), dpr.current, objects.current, current.current, objects.current.find((o) => o.id === selectedId.current) || null, eraserCursor.current), [])
+  const paint = useCallback(() => redraw(ctx(), dpr.current, objects.current, current.current, objects.current.find((o) => o.id === selectedId.current) || null, eraserCursor.current, viewport.current), [])
 
   const showToast = (m: string) => { setToast(m); window.clearTimeout((showToast as any).t); (showToast as any).t = window.setTimeout(() => setToast(''), 1600) }
 
@@ -69,12 +80,11 @@ export function Board() {
     paint()
   }, [paint])
 
-  const posOf = (e: PointerEvent) => {
+  const screenPosOf = (e: PointerEvent | WheelEvent) => {
     const r = canvasRef.current!.getBoundingClientRect()
-    return { x: e.clientX - r.left, y: e.clientY - r.top, p: e.pressure > 0 ? e.pressure : 1 }
+    return { x: e.clientX - r.left, y: e.clientY - r.top }
   }
-
-  const clone = <T,>(value: T): T => structuredClone(value)
+  const posOf = (e: PointerEvent) => ({ ...screenToWorld(screenPosOf(e), viewport.current), p: e.pressure > 0 ? e.pressure : 1 })
   const replace = (next: BoardObject[]) => { objects.current = clone(next); selectedId.current = null; paint() }
 
   const add = (o: BoardObject) => {
@@ -147,29 +157,20 @@ export function Board() {
 
   useEffect(() => {
     if (!initialized.current || !currentBoard) return
+    setSaveStatus('saving')
     const timer = window.setTimeout(() => {
-      try { const saved = saveBoard(currentBoard.id, currentBoard.name, objects.current); setCurrentBoard(saved.meta); refreshBoards() }
-      catch (error) { showToast(error instanceof Error ? error.message : 'Autosave failed') }
+      try { const saved = saveBoard(currentBoard.id, currentBoard.name, objects.current); setCurrentBoard(saved.meta); refreshBoards(); setSaveStatus('saved') }
+      catch (error) { setSaveStatus('error'); showToast(`${error instanceof Error ? error.message : 'Autosave failed'} · Export JSON to recover`) }
     }, 800)
     return () => window.clearTimeout(timer)
     // History changes are the autosave signal.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyVersion])
 
-  const translate = (o: BoardObject, dx: number, dy: number) => {
-    if (o.points) o.points.forEach((p) => { p.x += dx; p.y += dy })
-    if (o.x != null) o.x += dx
-    if (o.y != null) o.y += dy
-    if (o.x1 != null) o.x1 += dx
-    if (o.y1 != null) o.y1 += dy
-    if (o.x2 != null) o.x2 += dx
-    if (o.y2 != null) o.y2 += dy
-  }
-
   const eraseAt = (p: { x: number; y: number }) => {
     const radius = Math.max(8, ref.current.width * 1.5)
-    eraserCursor.current = { x: p.x, y: p.y, radius }
-    const hit = hitTest(objects.current, p.x, p.y, radius)
+    eraserCursor.current = { ...worldToScreen(p, viewport.current), radius }
+    const hit = hitTest(objects.current, p.x, p.y, radius / viewport.current.scale)
     if (hit && !erased.current.some((item) => item.object.id === hit.id)) {
       const index = objects.current.indexOf(hit)
       erased.current.push({ object: clone(hit), index })
@@ -183,6 +184,14 @@ export function Board() {
     const c = canvasRef.current!
     const down = (e: PointerEvent) => {
       c.setPointerCapture(e.pointerId)
+      const screen = screenPosOf(e)
+      activePointers.current.set(e.pointerId, screen)
+      if (activePointers.current.size === 2) {
+        const [a, b] = [...activePointers.current.values()], center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+        pinch.current = { distance: Math.hypot(a.x - b.x, a.y - b.y), center, scale: viewport.current.scale }
+        drawing.current = false; current.current = null; return
+      }
+      if (spaceDown.current) { panning.current = true; panOrigin.current = screen; return }
       const p = posOf(e); start.current = p; drawing.current = true
       setDevice(e.pointerType || 'pointer')
       const { tool, color, width } = ref.current
@@ -190,7 +199,7 @@ export function Board() {
         erased.current = []; eraseBefore.current = clone(objects.current); lastErase.current = performance.now(); eraseAt(p); paint(); return
       }
       if (tool === 'select') {
-        const hit = hitTest(objects.current, p.x, p.y, 6)
+        const hit = hitTest(objects.current, p.x, p.y, 6 / viewport.current.scale)
         selectedId.current = hit?.id || null
         if (hit?.norm) {
           // A normalized template object becomes pixel-based once, before moving.
@@ -216,6 +225,19 @@ export function Board() {
       paint()
     }
     const move = (e: PointerEvent) => {
+      const screen = screenPosOf(e)
+      if (activePointers.current.has(e.pointerId)) activePointers.current.set(e.pointerId, screen)
+      if (activePointers.current.size === 2 && pinch.current) {
+        const [a, b] = [...activePointers.current.values()], center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+        const distance = Math.hypot(a.x - b.x, a.y - b.y)
+        viewport.current = zoomAt(viewport.current, pinch.current.center, pinch.current.scale * distance / Math.max(1, pinch.current.distance))
+        viewport.current.ox += center.x - pinch.current.center.x; viewport.current.oy += center.y - pinch.current.center.y
+        setZoomPercent(Math.round(viewport.current.scale * 100)); paint(); return
+      }
+      if (panning.current && panOrigin.current) {
+        viewport.current.ox += screen.x - panOrigin.current.x; viewport.current.oy += screen.y - panOrigin.current.y
+        panOrigin.current = screen; paint(); return
+      }
       const p = posOf(e); const { tool, color, width } = ref.current
       if (tool === 'eraser') {
         eraserCursor.current = { x: p.x, y: p.y, radius: Math.max(8, width * 1.5) }
@@ -227,7 +249,7 @@ export function Board() {
       if (tool === 'select') {
         const o = objects.current.find((item) => item.id === selectedId.current)
         if (o && dragOrigin.current) {
-          translate(o, p.x - dragOrigin.current.x, p.y - dragOrigin.current.y)
+          translateObject(o, p.x - dragOrigin.current.x, p.y - dragOrigin.current.y)
           dragDelta.current.x += p.x - dragOrigin.current.x
           dragDelta.current.y += p.y - dragOrigin.current.y
           dragOrigin.current = p; paint()
@@ -239,7 +261,10 @@ export function Board() {
       else current.current = makeShape(tool, color, width, start.current!, p, current.current.id)
       paint()
     }
-    const finish = () => {
+    const finish = (e: PointerEvent) => {
+      activePointers.current.delete(e.pointerId)
+      if (activePointers.current.size < 2) pinch.current = null
+      if (panning.current) { panning.current = false; panOrigin.current = null; return }
       if (!drawing.current) return
       if (ref.current.tool === 'eraser') {
         if (erased.current.length) {
@@ -256,8 +281,8 @@ export function Board() {
         const id = selectedId.current, delta = { ...dragDelta.current }
         if (id && (delta.x || delta.y)) history.current!.push({
           label: 'move',
-          undo: () => { const o = objects.current.find((item) => item.id === id); if (o) translate(o, -delta.x, -delta.y); paint() },
-          redo: () => { const o = objects.current.find((item) => item.id === id); if (o) translate(o, delta.x, delta.y); paint() },
+          undo: () => { const o = objects.current.find((item) => item.id === id); if (o) translateObject(o, -delta.x, -delta.y); paint() },
+          redo: () => { const o = objects.current.find((item) => item.id === id); if (o) translateObject(o, delta.x, delta.y); paint() },
         })
         drawing.current = false; dragOrigin.current = null; return
       }
@@ -266,7 +291,8 @@ export function Board() {
     }
     const doubleClick = (e: MouseEvent) => {
       if (ref.current.tool !== 'select') return
-      const r = c.getBoundingClientRect(), o = hitTest(objects.current, e.clientX - r.left, e.clientY - r.top, 6)
+      const p = screenToWorld(screenPosOf(e as unknown as PointerEvent), viewport.current)
+      const o = hitTest(objects.current, p.x, p.y, 6 / viewport.current.scale)
       if (o?.type === 'text' || o?.type === 'sticky') openExistingEditor(o)
     }
     c.addEventListener('pointerdown', down)
@@ -274,12 +300,15 @@ export function Board() {
     c.addEventListener('pointerup', finish)
     c.addEventListener('pointercancel', finish)
     c.addEventListener('dblclick', doubleClick)
+    const wheel = (e: WheelEvent) => { e.preventDefault(); viewport.current = zoomAt(viewport.current, screenPosOf(e), viewport.current.scale * Math.exp(-e.deltaY * .001)); setZoomPercent(Math.round(viewport.current.scale * 100)); paint() }
+    c.addEventListener('wheel', wheel, { passive: false })
     return () => {
       c.removeEventListener('pointerdown', down)
       c.removeEventListener('pointermove', move)
       c.removeEventListener('pointerup', finish)
       c.removeEventListener('pointercancel', finish)
       c.removeEventListener('dblclick', doubleClick)
+      c.removeEventListener('wheel', wheel)
     }
   }, [paint])
 
@@ -288,6 +317,8 @@ export function Board() {
     resize()
     window.addEventListener('resize', resize)
     const key = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !/INPUT|TEXTAREA/.test((e.target as HTMLElement).tagName)) { spaceDown.current = true; e.preventDefault() }
+      if (e.key === '0') { viewport.current = { ...DEFAULT_VIEWPORT }; setZoomPercent(100); paint() }
       if (e.key === 'p' || e.key === 'P') appRef.current!.classList.toggle('present')
       if (e.key === 'Escape') appRef.current!.classList.remove('present')
       const target = e.target as HTMLElement
@@ -304,14 +335,14 @@ export function Board() {
       if (e.key === 'Escape') { selectedId.current = null; paint() }
       if (selected && e.key.startsWith('Arrow')) {
         const n = e.shiftKey ? 10 : 1
-        translate(selected, e.key === 'ArrowLeft' ? -n : e.key === 'ArrowRight' ? n : 0, e.key === 'ArrowUp' ? -n : e.key === 'ArrowDown' ? n : 0)
+        translateObject(selected, e.key === 'ArrowLeft' ? -n : e.key === 'ArrowRight' ? n : 0, e.key === 'ArrowUp' ? -n : e.key === 'ArrowDown' ? n : 0)
         const dx = e.key === 'ArrowLeft' ? -n : e.key === 'ArrowRight' ? n : 0
         const dy = e.key === 'ArrowUp' ? -n : e.key === 'ArrowDown' ? n : 0
         const id = selected.id
         history.current!.push({
           label: 'nudge',
-          undo: () => { const o = objects.current.find((item) => item.id === id); if (o) translate(o, -dx, -dy); paint() },
-          redo: () => { const o = objects.current.find((item) => item.id === id); if (o) translate(o, dx, dy); paint() },
+          undo: () => { const o = objects.current.find((item) => item.id === id); if (o) translateObject(o, -dx, -dy); paint() },
+          redo: () => { const o = objects.current.find((item) => item.id === id); if (o) translateObject(o, dx, dy); paint() },
         })
         paint(); e.preventDefault()
       }
@@ -319,20 +350,14 @@ export function Board() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { history.current!.redo(); e.preventDefault() }
     }
     document.addEventListener('keydown', key)
-    return () => { window.removeEventListener('resize', resize); document.removeEventListener('keydown', key) }
+    const keyup = (e: KeyboardEvent) => { if (e.code === 'Space') spaceDown.current = false }
+    document.addEventListener('keyup', keyup)
+    return () => { window.removeEventListener('resize', resize); document.removeEventListener('keydown', key); document.removeEventListener('keyup', keyup) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resize])
 
   const undo = () => history.current!.undo()
   const redo = () => history.current!.redo()
-  const nearestStickyColor = (hex: string) => {
-    const rgb = (value: string) => [1, 3, 5].map((i) => parseInt(value.slice(i, i + 2), 16))
-    const target = rgb(hex)
-    return STICKY_COLORS.reduce((best, candidate) => {
-      const a = rgb(best), b = rgb(candidate)
-      return b.reduce((sum, value, i) => sum + (value - target[i]) ** 2, 0) < a.reduce((sum, value, i) => sum + (value - target[i]) ** 2, 0) ? candidate : best
-    })
-  }
   const restyle = (changes: Partial<Pick<BoardObject, 'color' | 'width'>>) => {
     const selected = objects.current.find((o) => o.id === selectedId.current)
     if (!selected) return false
@@ -355,9 +380,12 @@ export function Board() {
 
   const exportPng = () => {
     const a = document.createElement('a')
-    // Export only board content; selection and eraser affordances are UI chrome.
-    redraw(ctx(), dpr.current, objects.current, null)
-    a.download = 'bridgeboard.png'; a.href = canvasRef.current!.toDataURL('image/png'); a.click(); paint()
+    const bounds = objects.current.map(objectBounds)
+    const minX = Math.min(...bounds.map((b) => b.x), 0), minY = Math.min(...bounds.map((b) => b.y), 0)
+    const maxX = Math.max(...bounds.map((b) => b.x + b.w), 1), maxY = Math.max(...bounds.map((b) => b.y + b.h), 1), margin = 32
+    const exportCanvas = document.createElement('canvas'); exportCanvas.width = Math.ceil(maxX - minX + margin * 2); exportCanvas.height = Math.ceil(maxY - minY + margin * 2)
+    const exportCtx = exportCanvas.getContext('2d')!; exportCtx.translate(margin - minX, margin - minY); objects.current.forEach((o) => drawObject(exportCtx, o))
+    a.download = 'bridgeboard.png'; a.href = exportCanvas.toDataURL('image/png'); a.click()
     showToast('PNG exported')
   }
   const exportJson = () => {
@@ -410,7 +438,7 @@ export function Board() {
             <small>{currentBoard?.name || 'Bridge Work · AI Lab'}</small>
           </button>
         </div>
-        <div className="status">Input <strong>{device}</strong></div>
+          <div className="status">Input <strong>{device}</strong> · <strong className={`save-${saveStatus}`}>{saveStatus}</strong></div>
       </header>
       <main>
         <div className="stage grid" ref={stageRef}>
@@ -420,13 +448,13 @@ export function Board() {
             className={`inline-editor ${editor.object.type}`}
             value={editor.object.text || ''}
             style={{
-              left: editor.object.x,
-              top: editor.object.type === 'text' ? editor.object.y! - (editor.object.size || 28) : editor.object.y,
-              width: editor.object.type === 'sticky' ? editor.object.w : 260,
-              height: editor.object.type === 'sticky' ? editor.object.h : 48,
+              left: worldToScreen({ x: editor.object.x!, y: editor.object.type === 'text' ? editor.object.y! - (editor.object.size || 28) : editor.object.y! }, viewport.current).x,
+              top: worldToScreen({ x: editor.object.x!, y: editor.object.type === 'text' ? editor.object.y! - (editor.object.size || 28) : editor.object.y! }, viewport.current).y,
+              width: (editor.object.type === 'sticky' ? editor.object.w! : 260) * viewport.current.scale,
+              height: (editor.object.type === 'sticky' ? editor.object.h! : 48) * viewport.current.scale,
               color: editor.object.type === 'sticky' ? '#050505' : editor.object.color,
               background: editor.object.type === 'sticky' ? editor.object.color : 'rgba(5,5,5,.82)',
-              fontSize: editor.object.type === 'sticky' ? 15 : editor.object.size,
+              fontSize: (editor.object.type === 'sticky' ? 15 : editor.object.size!) * viewport.current.scale,
             }}
             onChange={(e) => { editor.object.text = e.target.value; setEditor({ ...editor }); paint() }}
             onBlur={(e) => { if (e.currentTarget.dataset.cancelled !== 'true') commitEditor() }}
@@ -437,6 +465,7 @@ export function Board() {
           />}
           <div className="wordmark">bridge-work.ai</div>
           <div className="hint">Draw with mouse, touch or Samsung S Pen · P to present · Esc to exit</div>
+          <div className="zoom-indicator">{zoomPercent}% · 0 reset</div>
         </div>
         <Toolbar
           tool={tool} color={color} width={width}

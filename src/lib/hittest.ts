@@ -1,4 +1,4 @@
-import type { BoardObject, Point } from './types'
+import type { BoardObject, Point } from './types.js'
 
 export interface Bounds { x: number; y: number; w: number; h: number }
 

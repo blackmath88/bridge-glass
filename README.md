@@ -10,12 +10,14 @@ npm run dev
 ```
 
 Open the printed localhost URL. Draw with mouse, touch or Samsung S Pen.
+Use the wheel or pinch to zoom, Space-drag or two-finger drag to pan, and `0` to reset the viewport.
 
 ## Build
 
 ```bash
 npm run build      # → dist/
 npm run preview    # preview the production build
+npm test           # dependency-free core regression suite
 ```
 
 ## Deploy — Cloudflare Pages
@@ -39,7 +41,7 @@ To point at a different template source, set `VITE_TEMPLATE_BASE` (see `.env.exa
 ```
 src/
 ├── components/   Board, Toolbar, TemplatePanel, SignalMark
-├── lib/          types, canvas engine, template loader
+├── lib/          types, canvas engine, object/viewport geometry, history, storage, templates
 └── styles/       Bridge Work tokens (cyan accent)
 ```
 
@@ -47,7 +49,7 @@ src/
 
 Board persistence is local-first in Phase 1. All storage access is isolated in `src/lib/store.ts`, whose API can be backed by a Phase 2 Worker + D1/Durable Objects without changing UI components.
 
-- **Phase 1 (complete)** — object selection/move/delete, command undo/redo, sticky notes and inline text, multiple autosaved local boards, object eraser/restyling, controlled template application, PNG/JSON export ✓
+- **Phase 1 (complete)** — object selection/move/delete, command undo/redo, sticky notes and inline text, multiple autosaved local boards, object eraser/restyling, controlled template application, pan/zoom, PNG/JSON export ✓
 - **Phase 2** — remote S Pen / QR join via Cloudflare Worker + Durable Object (`/host`, `/remote/:id`)
 - **Phase 3** — Control Center at `/admin`
 

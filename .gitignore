@@ -3,3 +3,5 @@ dist
 .DS_Store
 *.local
 .vite
+.test-dist
+tsconfig.tsbuildinfo
