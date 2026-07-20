@@ -28,6 +28,7 @@ export function Board() {
   const dragOrigin = useRef<{ x: number; y: number } | null>(null)
   const dragDelta = useRef({ x: 0, y: 0 })
   const erased = useRef<Array<{ object: BoardObject; index: number }>>([])
+  const eraseBefore = useRef<BoardObject[]>([])
   const eraserCursor = useRef<{ x: number; y: number; radius: number } | null>(null)
   const lastErase = useRef(0)
   const history = useRef<History | null>(null)
@@ -186,7 +187,7 @@ export function Board() {
       setDevice(e.pointerType || 'pointer')
       const { tool, color, width } = ref.current
       if (tool === 'eraser') {
-        erased.current = []; lastErase.current = performance.now(); eraseAt(p); paint(); return
+        erased.current = []; eraseBefore.current = clone(objects.current); lastErase.current = performance.now(); eraseAt(p); paint(); return
       }
       if (tool === 'select') {
         const hit = hitTest(objects.current, p.x, p.y, 6)
@@ -241,12 +242,14 @@ export function Board() {
     const finish = () => {
       if (!drawing.current) return
       if (ref.current.tool === 'eraser') {
-        const removed = clone(erased.current)
-        if (removed.length) history.current!.push({
+        if (erased.current.length) {
+          const before = clone(eraseBefore.current), after = clone(objects.current)
+          history.current!.push({
           label: 'erase objects',
-          undo: () => { removed.slice().sort((a, b) => a.index - b.index).forEach((item) => objects.current.splice(Math.min(item.index, objects.current.length), 0, clone(item.object))); paint() },
-          redo: () => { const ids = new Set(removed.map((item) => item.object.id)); objects.current = objects.current.filter((o) => !ids.has(o.id)); paint() },
-        })
+            undo: () => replace(before),
+            redo: () => replace(after),
+          })
+        }
         drawing.current = false; erased.current = []; eraserCursor.current = null; paint(); return
       }
       if (ref.current.tool === 'select') {
@@ -352,7 +355,9 @@ export function Board() {
 
   const exportPng = () => {
     const a = document.createElement('a')
-    a.download = 'bridgeboard.png'; a.href = canvasRef.current!.toDataURL('image/png'); a.click()
+    // Export only board content; selection and eraser affordances are UI chrome.
+    redraw(ctx(), dpr.current, objects.current, null)
+    a.download = 'bridgeboard.png'; a.href = canvasRef.current!.toDataURL('image/png'); a.click(); paint()
     showToast('PNG exported')
   }
   const exportJson = () => {
