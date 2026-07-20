@@ -33,8 +33,7 @@ export function drawObject(
   ctx.globalAlpha = preview ? 0.72 : 1
   ctx.lineWidth = o.width
 
-  if (o.type === 'stroke' || o.type === 'eraser') {
-    ctx.globalCompositeOperation = o.type === 'eraser' ? 'destination-out' : 'source-over'
+  if (o.type === 'stroke') {
     ctx.beginPath()
     o.points?.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
     ctx.stroke()
@@ -89,7 +88,8 @@ export function redraw(
   dpr: number,
   objects: BoardObject[],
   current: BoardObject | null,
-  selected: BoardObject | null = null
+  selected: BoardObject | null = null,
+  eraserCursor: { x: number; y: number; radius: number } | null = null
 ) {
   ctx.clearRect(0, 0, ctx.canvas.width / dpr, ctx.canvas.height / dpr)
   objects.forEach((o) => drawObject(ctx, o))
@@ -102,6 +102,10 @@ export function redraw(
     ctx.setLineDash([6, 6])
     ctx.strokeRect(b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2)
     ctx.restore()
+  }
+  if (eraserCursor) {
+    ctx.save(); ctx.strokeStyle = 'rgba(240,235,227,.8)'; ctx.lineWidth = 1.5
+    ctx.beginPath(); ctx.arc(eraserCursor.x, eraserCursor.y, eraserCursor.radius, 0, Math.PI * 2); ctx.stroke(); ctx.restore()
   }
 }
 

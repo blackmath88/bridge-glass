@@ -27,6 +27,9 @@ export function Board() {
   const selectedId = useRef<string | null>(null)
   const dragOrigin = useRef<{ x: number; y: number } | null>(null)
   const dragDelta = useRef({ x: 0, y: 0 })
+  const erased = useRef<Array<{ object: BoardObject; index: number }>>([])
+  const eraserCursor = useRef<{ x: number; y: number; radius: number } | null>(null)
+  const lastErase = useRef(0)
   const history = useRef<History | null>(null)
   const initialized = useRef(false)
 
@@ -48,7 +51,7 @@ export function Board() {
   ref.current = { tool, color, width }
 
   const ctx = () => canvasRef.current!.getContext('2d')!
-  const paint = useCallback(() => redraw(ctx(), dpr.current, objects.current, current.current, objects.current.find((o) => o.id === selectedId.current) || null), [])
+  const paint = useCallback(() => redraw(ctx(), dpr.current, objects.current, current.current, objects.current.find((o) => o.id === selectedId.current) || null, eraserCursor.current), [])
 
   const showToast = (m: string) => { setToast(m); window.clearTimeout((showToast as any).t); (showToast as any).t = window.setTimeout(() => setToast(''), 1600) }
 
@@ -161,6 +164,18 @@ export function Board() {
     if (o.y2 != null) o.y2 += dy
   }
 
+  const eraseAt = (p: { x: number; y: number }) => {
+    const radius = Math.max(8, ref.current.width * 1.5)
+    eraserCursor.current = { x: p.x, y: p.y, radius }
+    const hit = hitTest(objects.current, p.x, p.y, radius)
+    if (hit && !erased.current.some((item) => item.object.id === hit.id)) {
+      const index = objects.current.indexOf(hit)
+      erased.current.push({ object: clone(hit), index })
+      objects.current.splice(index, 1)
+      if (selectedId.current === hit.id) selectedId.current = null
+    }
+  }
+
   // pointer handlers
   useEffect(() => {
     const c = canvasRef.current!
@@ -169,6 +184,9 @@ export function Board() {
       const p = posOf(e); start.current = p; drawing.current = true
       setDevice(e.pointerType || 'pointer')
       const { tool, color, width } = ref.current
+      if (tool === 'eraser') {
+        erased.current = []; lastErase.current = performance.now(); eraseAt(p); paint(); return
+      }
       if (tool === 'select') {
         const hit = hitTest(objects.current, p.x, p.y, 6)
         selectedId.current = hit?.id || null
@@ -190,14 +208,20 @@ export function Board() {
         openNewEditor({ id: uid(), type: 'sticky', text: '', x: p.x, y: p.y, w: 160, h: 120, color: STICKY_COLORS[1], width: 1 })
         drawing.current = false; return
       }
-      if (tool === 'pen' || tool === 'eraser')
-        current.current = { id: uid(), type: tool === 'eraser' ? 'eraser' : 'stroke', color, width: tool === 'eraser' ? width * 3 : width, points: [p] }
+      if (tool === 'pen')
+        current.current = { id: uid(), type: 'stroke', color, width, points: [p] }
       else current.current = makeShape(tool, color, width, p, p, uid())
       paint()
     }
     const move = (e: PointerEvent) => {
-      if (!drawing.current) return
       const p = posOf(e); const { tool, color, width } = ref.current
+      if (tool === 'eraser') {
+        eraserCursor.current = { x: p.x, y: p.y, radius: Math.max(8, width * 1.5) }
+        if (drawing.current && performance.now() - lastErase.current >= 16) { lastErase.current = performance.now(); eraseAt(p) }
+        paint()
+        return
+      }
+      if (!drawing.current) return
       if (tool === 'select') {
         const o = objects.current.find((item) => item.id === selectedId.current)
         if (o && dragOrigin.current) {
@@ -209,12 +233,21 @@ export function Board() {
         return
       }
       if (!current.current) return
-      if (tool === 'pen' || tool === 'eraser') current.current.points!.push(p)
+      if (tool === 'pen') current.current.points!.push(p)
       else current.current = makeShape(tool, color, width, start.current!, p, current.current.id)
       paint()
     }
     const finish = () => {
       if (!drawing.current) return
+      if (ref.current.tool === 'eraser') {
+        const removed = clone(erased.current)
+        if (removed.length) history.current!.push({
+          label: 'erase objects',
+          undo: () => { removed.slice().sort((a, b) => a.index - b.index).forEach((item) => objects.current.splice(Math.min(item.index, objects.current.length), 0, clone(item.object))); paint() },
+          redo: () => { const ids = new Set(removed.map((item) => item.object.id)); objects.current = objects.current.filter((o) => !ids.has(o.id)); paint() },
+        })
+        drawing.current = false; erased.current = []; eraserCursor.current = null; paint(); return
+      }
       if (ref.current.tool === 'select') {
         const id = selectedId.current, delta = { ...dragDelta.current }
         if (id && (delta.x || delta.y)) history.current!.push({
@@ -288,6 +321,28 @@ export function Board() {
 
   const undo = () => history.current!.undo()
   const redo = () => history.current!.redo()
+  const nearestStickyColor = (hex: string) => {
+    const rgb = (value: string) => [1, 3, 5].map((i) => parseInt(value.slice(i, i + 2), 16))
+    const target = rgb(hex)
+    return STICKY_COLORS.reduce((best, candidate) => {
+      const a = rgb(best), b = rgb(candidate)
+      return b.reduce((sum, value, i) => sum + (value - target[i]) ** 2, 0) < a.reduce((sum, value, i) => sum + (value - target[i]) ** 2, 0) ? candidate : best
+    })
+  }
+  const restyle = (changes: Partial<Pick<BoardObject, 'color' | 'width'>>) => {
+    const selected = objects.current.find((o) => o.id === selectedId.current)
+    if (!selected) return false
+    const before = clone(selected)
+    Object.assign(selected, changes)
+    if (selected.type === 'sticky' && changes.color) selected.color = nearestStickyColor(changes.color)
+    const after = clone(selected)
+    history.current!.push({
+      label: 'restyle',
+      undo: () => { const o = objects.current.find((item) => item.id === before.id); if (o) Object.assign(o, clone(before)); paint() },
+      redo: () => { const o = objects.current.find((item) => item.id === after.id); if (o) Object.assign(o, clone(after)); paint() },
+    })
+    paint(); return true
+  }
   const clear = () => {
     if (!confirm('Clear the board?') || !objects.current.length) return
     const before = clone(objects.current); replace([])
@@ -347,7 +402,7 @@ export function Board() {
       </header>
       <main>
         <div className="stage grid" ref={stageRef}>
-          <canvas ref={canvasRef} />
+          <canvas ref={canvasRef} className={tool === 'eraser' ? 'eraser-active' : ''} />
           {editor && <textarea
             autoFocus
             className={`inline-editor ${editor.object.type}`}
@@ -373,7 +428,7 @@ export function Board() {
         </div>
         <Toolbar
           tool={tool} color={color} width={width}
-          onTool={setTool} onColor={setColor} onWidth={setWidth}
+          onTool={setTool} onColor={(c) => { setColor(c); restyle({ color: c }) }} onWidth={(w) => { setWidth(w); restyle({ width: w }) }}
           onUndo={undo} onRedo={redo}
           canUndo={history.current.canUndo} canRedo={history.current.canRedo}
           onToggleGrid={() => stageRef.current!.classList.toggle('grid')}

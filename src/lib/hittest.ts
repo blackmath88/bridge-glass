@@ -26,7 +26,7 @@ export function objectBounds(o: BoardObject): Bounds {
 }
 
 function hits(o: BoardObject, x: number, y: number, tolerance: number): boolean {
-  if (o.type === 'stroke' || o.type === 'eraser') {
+  if (o.type === 'stroke') {
     const points = o.points || []
     if (points.length === 1) return Math.hypot(x - points[0].x, y - points[0].y) <= tolerance + o.width / 2
     return points.some((p, i) => i > 0 && distanceToSegment({ x, y }, points[i - 1], p) <= tolerance + o.width / 2)

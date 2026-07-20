@@ -5,7 +5,7 @@ export const INDEX_KEY = 'bridgeboard:index'
 const BOARD_KEY = 'bridgeboard:board:'
 
 export interface BoardMeta { id: string; name: string; updatedAt: string; objectCount: number }
-export interface StoredBoard { v: 1; meta: BoardMeta; objects: BoardObject[] }
+export interface StoredBoard { v: 2; meta: BoardMeta; objects: BoardObject[] }
 
 function fail(action: string, error: unknown): never {
   throw new Error(`${action}: ${error instanceof Error ? error.message : String(error)}`)
@@ -23,14 +23,24 @@ export function listBoards(): BoardMeta[] {
 export function loadBoard(id: string): StoredBoard | null {
   try {
     const raw = localStorage.getItem(`${BOARD_KEY}${id}`)
-    return raw ? JSON.parse(raw) : null
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { v?: number; meta: BoardMeta; objects?: Array<Omit<BoardObject, 'type'> & { type: string }> }
+    // v1 used pixel eraser objects; object erasing in v2 makes those obsolete.
+    const objects = (parsed.objects || []).filter((o) => o.type !== 'eraser') as BoardObject[]
+    const migrated: StoredBoard = { v: 2, meta: { ...parsed.meta, objectCount: objects.length }, objects }
+    if (parsed.v !== 2 || objects.length !== (parsed.objects || []).length) {
+      localStorage.setItem(`${BOARD_KEY}${id}`, JSON.stringify(migrated))
+      const index = listBoards().filter((item) => item.id !== id)
+      writeIndex([migrated.meta, ...index])
+    }
+    return migrated
   } catch (error) { return fail('Could not load board', error) }
 }
 
 export function saveBoard(id: string, name: string, objects: BoardObject[]): StoredBoard {
   try {
     const meta = { id, name, updatedAt: new Date().toISOString(), objectCount: objects.length }
-    const board: StoredBoard = { v: 1, meta, objects: structuredClone(objects) }
+    const board: StoredBoard = { v: 2, meta, objects: structuredClone(objects) }
     localStorage.setItem(`${BOARD_KEY}${id}`, JSON.stringify(board))
     const index = listBoards().filter((item) => item.id !== id)
     writeIndex([meta, ...index])

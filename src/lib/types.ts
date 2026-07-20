@@ -8,7 +8,7 @@ export interface Point { x: number; y: number; p?: number }
 
 export interface BoardObject {
   id: string
-  type: 'stroke' | 'eraser' | 'line' | 'arrow' | 'rect' | 'circle' | 'text' | 'sticky'
+  type: 'stroke' | 'line' | 'arrow' | 'rect' | 'circle' | 'text' | 'sticky'
   color: string
   width: number
   norm?: boolean        // true => x/y/w/h/x1.. are 0..1 fractions of the stage
