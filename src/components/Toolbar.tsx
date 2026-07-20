@@ -1,6 +1,6 @@
 import type { Tool } from '../lib/types'
 
-const TOOLS: Tool[] = ['pen', 'eraser', 'text', 'line', 'arrow', 'rect', 'circle']
+export const TOOLS: Tool[] = ['select', 'pen', 'eraser', 'text', 'line', 'arrow', 'rect', 'circle']
 const COLORS = [
   { hex: '#f0ebe3', title: 'Cream' },
   { hex: '#2a8fa0', title: 'Cyan' },

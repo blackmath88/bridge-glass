@@ -2,11 +2,12 @@
 // Template coordinates are normalized 0..1; live drawing uses pixels.
 // `norm` marks whether x/y/w/h are normalized (templates) or pixel (user strokes).
 
-export type Tool = 'pen' | 'eraser' | 'text' | 'line' | 'arrow' | 'rect' | 'circle'
+export type Tool = 'select' | 'pen' | 'eraser' | 'text' | 'line' | 'arrow' | 'rect' | 'circle'
 
 export interface Point { x: number; y: number; p?: number }
 
 export interface BoardObject {
+  id: string
   type: 'stroke' | 'eraser' | 'line' | 'arrow' | 'rect' | 'circle' | 'text'
   color: string
   width: number

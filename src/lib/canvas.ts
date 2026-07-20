@@ -1,4 +1,5 @@
 import type { BoardObject } from './types'
+import { objectBounds } from './hittest'
 
 export function drawObject(
   ctx: CanvasRenderingContext2D,
@@ -57,11 +58,21 @@ export function redraw(
   ctx: CanvasRenderingContext2D,
   dpr: number,
   objects: BoardObject[],
-  current: BoardObject | null
+  current: BoardObject | null,
+  selected: BoardObject | null = null
 ) {
   ctx.clearRect(0, 0, ctx.canvas.width / dpr, ctx.canvas.height / dpr)
   objects.forEach((o) => drawObject(ctx, o))
   if (current) drawObject(ctx, current, true)
+  if (selected) {
+    const b = objectBounds(selected), pad = 6
+    ctx.save()
+    ctx.strokeStyle = '#2a8fa0' // --accent in src/styles/index.css
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([6, 6])
+    ctx.strokeRect(b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2)
+    ctx.restore()
+  }
 }
 
 export function makeShape(
@@ -69,14 +80,15 @@ export function makeShape(
   color: string,
   width: number,
   start: { x: number; y: number },
-  p: { x: number; y: number }
+  p: { x: number; y: number },
+  id: string
 ): BoardObject {
   if (tool === 'rect' || tool === 'circle') {
     return {
-      type: tool, color, width,
+      id, type: tool, color, width,
       x: Math.min(start.x, p.x), y: Math.min(start.y, p.y),
       w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y),
     }
   }
-  return { type: tool as 'line' | 'arrow', color, width, x1: start.x, y1: start.y, x2: p.x, y2: p.y }
+  return { id, type: tool as 'line' | 'arrow', color, width, x1: start.x, y1: start.y, x2: p.x, y2: p.y }
 }

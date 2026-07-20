@@ -5,6 +5,9 @@ import { fetchTemplate, denormalize, markNormalized } from '../lib/templates'
 import { SignalMark } from './SignalMark'
 import { Toolbar } from './Toolbar'
 import { TemplatePanel } from './TemplatePanel'
+import { hitTest } from '../lib/hittest'
+import { uid } from '../lib/uid'
+import { TOOLS } from './Toolbar'
 
 export function Board() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -18,6 +21,8 @@ export function Board() {
   const start = useRef<{ x: number; y: number } | null>(null)
   const drawing = useRef(false)
   const dpr = useRef(1)
+  const selectedId = useRef<string | null>(null)
+  const dragOrigin = useRef<{ x: number; y: number } | null>(null)
 
   const [tool, setTool] = useState<Tool>('pen')
   const [color, setColor] = useState('#f0ebe3')
@@ -30,7 +35,7 @@ export function Board() {
   ref.current = { tool, color, width }
 
   const ctx = () => canvasRef.current!.getContext('2d')!
-  const paint = useCallback(() => redraw(ctx(), dpr.current, objects.current, current.current), [])
+  const paint = useCallback(() => redraw(ctx(), dpr.current, objects.current, current.current, objects.current.find((o) => o.id === selectedId.current) || null), [])
 
   const showToast = (m: string) => { setToast(m); window.clearTimeout((showToast as any).t); (showToast as any).t = window.setTimeout(() => setToast(''), 1600) }
 
@@ -53,6 +58,16 @@ export function Board() {
 
   const add = (o: BoardObject) => { objects.current.push(o); redoStack.current = []; paint() }
 
+  const translate = (o: BoardObject, dx: number, dy: number) => {
+    if (o.points) o.points.forEach((p) => { p.x += dx; p.y += dy })
+    if (o.x != null) o.x += dx
+    if (o.y != null) o.y += dy
+    if (o.x1 != null) o.x1 += dx
+    if (o.y1 != null) o.y1 += dy
+    if (o.x2 != null) o.x2 += dx
+    if (o.y2 != null) o.y2 += dy
+  }
+
   // pointer handlers
   useEffect(() => {
     const c = canvasRef.current!
@@ -61,25 +76,48 @@ export function Board() {
       const p = posOf(e); start.current = p; drawing.current = true
       setDevice(e.pointerType || 'pointer')
       const { tool, color, width } = ref.current
+      if (tool === 'select') {
+        const hit = hitTest(objects.current, p.x, p.y, 6)
+        selectedId.current = hit?.id || null
+        if (hit?.norm) {
+          // A normalized template object becomes pixel-based once, before moving.
+          const r = stageRef.current!.getBoundingClientRect()
+          const pixel = denormalize([hit], r.width, r.height)[0]
+          Object.assign(hit, pixel)
+        }
+        dragOrigin.current = hit ? p : null
+        paint(); return
+      }
       if (tool === 'text') {
         const text = prompt('Text on glass:')
-        if (text) add({ type: 'text', text, x: p.x, y: p.y, color, width, size: 28 })
+        if (text) add({ id: uid(), type: 'text', text, x: p.x, y: p.y, color, width, size: 28 })
         drawing.current = false; return
       }
       if (tool === 'pen' || tool === 'eraser')
-        current.current = { type: tool === 'eraser' ? 'eraser' : 'stroke', color, width: tool === 'eraser' ? width * 3 : width, points: [p] }
-      else current.current = makeShape(tool, color, width, p, p)
+        current.current = { id: uid(), type: tool === 'eraser' ? 'eraser' : 'stroke', color, width: tool === 'eraser' ? width * 3 : width, points: [p] }
+      else current.current = makeShape(tool, color, width, p, p, uid())
       paint()
     }
     const move = (e: PointerEvent) => {
-      if (!drawing.current || !current.current) return
+      if (!drawing.current) return
       const p = posOf(e); const { tool, color, width } = ref.current
+      if (tool === 'select') {
+        const o = objects.current.find((item) => item.id === selectedId.current)
+        if (o && dragOrigin.current) {
+          translate(o, p.x - dragOrigin.current.x, p.y - dragOrigin.current.y)
+          dragOrigin.current = p; paint()
+        }
+        return
+      }
+      if (!current.current) return
       if (tool === 'pen' || tool === 'eraser') current.current.points!.push(p)
-      else current.current = makeShape(tool, color, width, start.current!, p)
+      else current.current = makeShape(tool, color, width, start.current!, p, current.current.id)
       paint()
     }
     const finish = () => {
-      if (!drawing.current || !current.current) return
+      if (!drawing.current) return
+      if (ref.current.tool === 'select') { drawing.current = false; dragOrigin.current = null; return }
+      if (!current.current) return
       add(current.current); current.current = null; drawing.current = false
     }
     c.addEventListener('pointerdown', down)
@@ -101,6 +139,20 @@ export function Board() {
     const key = (e: KeyboardEvent) => {
       if (e.key === 'p' || e.key === 'P') appRef.current!.classList.toggle('present')
       if (e.key === 'Escape') appRef.current!.classList.remove('present')
+      const target = e.target as HTMLElement
+      if (/INPUT|TEXTAREA/.test(target.tagName)) return
+      if (e.key.toLowerCase() === 'v') setTool('select')
+      if (/^[1-8]$/.test(e.key)) setTool(TOOLS[Number(e.key) - 1])
+      const selected = objects.current.find((o) => o.id === selectedId.current)
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
+        objects.current = objects.current.filter((o) => o.id !== selected.id); selectedId.current = null; paint(); e.preventDefault()
+      }
+      if (e.key === 'Escape') { selectedId.current = null; paint() }
+      if (selected && e.key.startsWith('Arrow')) {
+        const n = e.shiftKey ? 10 : 1
+        translate(selected, e.key === 'ArrowLeft' ? -n : e.key === 'ArrowRight' ? n : 0, e.key === 'ArrowUp' ? -n : e.key === 'ArrowDown' ? n : 0)
+        paint(); e.preventDefault()
+      }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') undo()
     }
     document.addEventListener('keydown', key)
@@ -137,7 +189,7 @@ export function Board() {
     try {
       const t = await fetchTemplate(file)
       const r = stageRef.current!.getBoundingClientRect()
-      objects.current = denormalize(markNormalized(t), r.width, r.height)
+      objects.current = denormalize(markNormalized(t), r.width, r.height).map((o) => ({ ...o, id: o.id || uid() }))
       redoStack.current = []; paint(); showToast(`Loaded · ${t.name}`)
     } catch { showToast('Template load failed') }
   }
