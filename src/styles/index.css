@@ -78,11 +78,15 @@ input[type=file]{display:none}
   font-weight:400;color:var(--muted);margin:0 0 12px}
 .panel p{color:var(--muted);font-size:12.5px;line-height:1.5;margin:8px 0;font-weight:300}
 .templates{display:grid;gap:8px;margin-top:6px}
-.templates button{text-align:left;border-radius:14px;padding:12px 13px;border:1px solid var(--line);
+.templates article{border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03);overflow:hidden}
+.templates .template-main{text-align:left;width:100%;padding:12px 13px;border:0;
   background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;transition:.2s var(--ease)}
-.templates button:hover{background:rgba(255,255,255,.07);border-color:var(--accent-line)}
+.templates .template-main:hover{background:rgba(255,255,255,.07)}
 .templates b{display:block;font-size:12px;font-weight:500}
 .templates span{display:block;color:var(--muted);font-size:10.5px;margin-top:4px;font-weight:300}
+.templates em{display:block;color:var(--muted);font-size:11px;line-height:1.4;margin-top:7px;font-style:normal}
+.templates details{padding:0 13px 10px;color:var(--muted);font:9px var(--font-mono)}.templates details ul{padding-left:16px;line-height:1.45}
+.templates .copy-prompt{margin:0 13px 12px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--text);padding:6px 8px;font:8px var(--font-mono);cursor:pointer}
 .loadnote{font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;
   color:var(--ghost);margin-top:12px}
 
@@ -98,6 +102,10 @@ input[type=file]{display:none}
 .board-main b,.board-main span{display:block}.board-main span{color:var(--muted);font-size:10px;margin-top:5px}
 .board-list input{width:100%;background:var(--black);border:1px solid var(--accent);color:var(--text);padding:8px;border-radius:8px}
 .board-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}.board-actions button{font-size:8px;padding:6px}
+.template-dialog{position:absolute;z-index:16;left:50%;top:50%;transform:translate(-50%,-50%);width:min(390px,calc(100vw - 40px));
+  padding:18px;border:1px solid var(--accent-line);border-radius:18px;background:rgba(8,10,10,.94);box-shadow:var(--shadow);backdrop-filter:blur(20px)}
+.template-dialog b,.template-dialog span{display:block}.template-dialog span{color:var(--muted);font-size:12px;margin:7px 0 15px}.template-dialog div{display:flex;gap:7px;flex-wrap:wrap}
+.template-dialog button{border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.05);color:var(--text);padding:8px 11px;font:9px var(--font-mono);cursor:pointer}
 
 .present header,.present .toolbar,.present .panel,.present .hint{display:none}
 .present .stage{margin:0;border-radius:0;border:none}

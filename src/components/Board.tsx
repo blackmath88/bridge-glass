@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { BoardObject, Tool } from '../lib/types'
+import type { BoardObject, Template, Tool } from '../lib/types'
 import { redraw, makeShape, STICKY_COLORS } from '../lib/canvas'
-import { fetchTemplate, denormalize, markNormalized } from '../lib/templates'
+import { denormalize, markNormalized } from '../lib/templates'
 import { SignalMark } from './SignalMark'
 import { Toolbar } from './Toolbar'
 import { TemplatePanel } from './TemplatePanel'
@@ -43,6 +43,7 @@ export function Board() {
   const [boards, setBoards] = useState<BoardMeta[]>([])
   const [currentBoard, setCurrentBoard] = useState<BoardMeta | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [pendingTemplate, setPendingTemplate] = useState<Template | null>(null)
 
   if (!history.current) history.current = new History(() => setHistoryVersion((v) => v + 1))
 
@@ -376,16 +377,22 @@ export function Board() {
     r.readAsText(f)
   }
 
-  const loadTemplate = async (file: string) => {
+  const applyTemplate = (t: Template, mode: 'replace' | 'add') => {
     try {
-      const t = await fetchTemplate(file)
       const r = stageRef.current!.getBoundingClientRect()
       const before = clone(objects.current)
-      const after = denormalize(markNormalized(t), r.width, r.height).map((o) => ({ ...o, id: o.id || uid() }))
+      const incoming = denormalize(markNormalized(t), r.width, r.height).map((o) => ({ ...o, id: uid() }))
+      const after = mode === 'replace' ? incoming : [...before, ...incoming]
       replace(after)
-      history.current!.push({ label: 'apply template', undo: () => replace(before), redo: () => replace(after) })
-      showToast(`Loaded · ${t.name}`)
+      history.current!.push({ label: `${mode} template`, undo: () => replace(before), redo: () => replace(after) })
+      if (t.accent) setColor(t.accent)
+      setPendingTemplate(null); showToast(`Applied · ${t.name}`)
     } catch { showToast('Template load failed') }
+  }
+
+  const loadTemplate = (template: Template) => {
+    if (objects.current.length) setPendingTemplate(template)
+    else applyTemplate(template, 'replace')
   }
 
   return (
@@ -435,7 +442,12 @@ export function Board() {
           onPresent={() => appRef.current!.classList.toggle('present')}
           onExportPng={exportPng} onExportJson={exportJson} onLoadJson={loadJson} onClear={clear}
         />
-        <TemplatePanel onLoad={loadTemplate} />
+        <TemplatePanel onLoad={loadTemplate} onNotice={showToast} />
+        {pendingTemplate && <div className="template-dialog" role="dialog" aria-modal="true">
+          <b>Apply {pendingTemplate.name}?</b>
+          <span>This board already has objects.</span>
+          <div><button onClick={() => applyTemplate(pendingTemplate, 'replace')}>Replace board</button><button onClick={() => applyTemplate(pendingTemplate, 'add')}>Add to board</button><button onClick={() => setPendingTemplate(null)}>Cancel</button></div>
+        </div>}
         <BoardDrawer
           open={drawerOpen} boards={boards} currentId={currentBoard?.id || null} onClose={() => setDrawerOpen(false)} onSwitch={switchBoard}
           onNew={() => { try { const b = createBoard(`Board ${boards.length + 1}`); refreshBoards(); switchBoard(b.meta.id) } catch (e) { showToast(String(e)) } }}
