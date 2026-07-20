@@ -8,6 +8,7 @@ import { TemplatePanel } from './TemplatePanel'
 import { hitTest } from '../lib/hittest'
 import { uid } from '../lib/uid'
 import { TOOLS } from './Toolbar'
+import { History } from '../lib/history'
 
 export function Board() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -16,19 +17,23 @@ export function Board() {
 
   // mutable drawing state kept in refs (avoids re-render per pointermove)
   const objects = useRef<BoardObject[]>([])
-  const redoStack = useRef<BoardObject[]>([])
   const current = useRef<BoardObject | null>(null)
   const start = useRef<{ x: number; y: number } | null>(null)
   const drawing = useRef(false)
   const dpr = useRef(1)
   const selectedId = useRef<string | null>(null)
   const dragOrigin = useRef<{ x: number; y: number } | null>(null)
+  const dragDelta = useRef({ x: 0, y: 0 })
+  const history = useRef<History | null>(null)
 
   const [tool, setTool] = useState<Tool>('pen')
   const [color, setColor] = useState('#f0ebe3')
   const [width, setWidth] = useState(4)
   const [device, setDevice] = useState('mouse / touch / pen')
   const [toast, setToast] = useState('')
+  const [, setHistoryVersion] = useState(0)
+
+  if (!history.current) history.current = new History(() => setHistoryVersion((v) => v + 1))
 
   // keep latest tool/color/width available to event handlers
   const ref = useRef({ tool, color, width })
@@ -56,7 +61,19 @@ export function Board() {
     return { x: e.clientX - r.left, y: e.clientY - r.top, p: e.pressure > 0 ? e.pressure : 1 }
   }
 
-  const add = (o: BoardObject) => { objects.current.push(o); redoStack.current = []; paint() }
+  const clone = <T,>(value: T): T => structuredClone(value)
+  const replace = (next: BoardObject[]) => { objects.current = clone(next); selectedId.current = null; paint() }
+
+  const add = (o: BoardObject) => {
+    objects.current.push(o)
+    const snapshot = clone(o)
+    history.current!.push({
+      label: 'add',
+      undo: () => { objects.current = objects.current.filter((item) => item.id !== snapshot.id); paint() },
+      redo: () => { objects.current.push(clone(snapshot)); paint() },
+    })
+    paint()
+  }
 
   const translate = (o: BoardObject, dx: number, dy: number) => {
     if (o.points) o.points.forEach((p) => { p.x += dx; p.y += dy })
@@ -86,6 +103,7 @@ export function Board() {
           Object.assign(hit, pixel)
         }
         dragOrigin.current = hit ? p : null
+        dragDelta.current = { x: 0, y: 0 }
         paint(); return
       }
       if (tool === 'text') {
@@ -105,6 +123,8 @@ export function Board() {
         const o = objects.current.find((item) => item.id === selectedId.current)
         if (o && dragOrigin.current) {
           translate(o, p.x - dragOrigin.current.x, p.y - dragOrigin.current.y)
+          dragDelta.current.x += p.x - dragOrigin.current.x
+          dragDelta.current.y += p.y - dragOrigin.current.y
           dragOrigin.current = p; paint()
         }
         return
@@ -116,7 +136,15 @@ export function Board() {
     }
     const finish = () => {
       if (!drawing.current) return
-      if (ref.current.tool === 'select') { drawing.current = false; dragOrigin.current = null; return }
+      if (ref.current.tool === 'select') {
+        const id = selectedId.current, delta = { ...dragDelta.current }
+        if (id && (delta.x || delta.y)) history.current!.push({
+          label: 'move',
+          undo: () => { const o = objects.current.find((item) => item.id === id); if (o) translate(o, -delta.x, -delta.y); paint() },
+          redo: () => { const o = objects.current.find((item) => item.id === id); if (o) translate(o, delta.x, delta.y); paint() },
+        })
+        drawing.current = false; dragOrigin.current = null; return
+      }
       if (!current.current) return
       add(current.current); current.current = null; drawing.current = false
     }
@@ -145,24 +173,40 @@ export function Board() {
       if (/^[1-8]$/.test(e.key)) setTool(TOOLS[Number(e.key) - 1])
       const selected = objects.current.find((o) => o.id === selectedId.current)
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
-        objects.current = objects.current.filter((o) => o.id !== selected.id); selectedId.current = null; paint(); e.preventDefault()
+        const snapshot = clone(selected), index = objects.current.indexOf(selected)
+        objects.current.splice(index, 1); selectedId.current = null
+        history.current!.push({ label: 'delete', undo: () => { objects.current.splice(index, 0, clone(snapshot)); paint() }, redo: () => { objects.current = objects.current.filter((o) => o.id !== snapshot.id); paint() } })
+        paint(); e.preventDefault()
       }
       if (e.key === 'Escape') { selectedId.current = null; paint() }
       if (selected && e.key.startsWith('Arrow')) {
         const n = e.shiftKey ? 10 : 1
         translate(selected, e.key === 'ArrowLeft' ? -n : e.key === 'ArrowRight' ? n : 0, e.key === 'ArrowUp' ? -n : e.key === 'ArrowDown' ? n : 0)
+        const dx = e.key === 'ArrowLeft' ? -n : e.key === 'ArrowRight' ? n : 0
+        const dy = e.key === 'ArrowUp' ? -n : e.key === 'ArrowDown' ? n : 0
+        const id = selected.id
+        history.current!.push({
+          label: 'nudge',
+          undo: () => { const o = objects.current.find((item) => item.id === id); if (o) translate(o, -dx, -dy); paint() },
+          redo: () => { const o = objects.current.find((item) => item.id === id); if (o) translate(o, dx, dy); paint() },
+        })
         paint(); e.preventDefault()
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') undo()
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.shiftKey ? history.current!.redo() : history.current!.undo(); e.preventDefault() }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { history.current!.redo(); e.preventDefault() }
     }
     document.addEventListener('keydown', key)
     return () => { window.removeEventListener('resize', resize); document.removeEventListener('keydown', key) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resize])
 
-  const undo = () => { const o = objects.current.pop(); if (o) { redoStack.current.push(o); paint() } }
-  const redo = () => { const o = redoStack.current.pop(); if (o) { objects.current.push(o); paint() } }
-  const clear = () => { if (confirm('Clear the board?')) { objects.current = []; redoStack.current = []; paint() } }
+  const undo = () => history.current!.undo()
+  const redo = () => history.current!.redo()
+  const clear = () => {
+    if (!confirm('Clear the board?') || !objects.current.length) return
+    const before = clone(objects.current); replace([])
+    history.current!.push({ label: 'clear', undo: () => replace(before), redo: () => replace([]) })
+  }
 
   const exportPng = () => {
     const a = document.createElement('a')
@@ -179,7 +223,13 @@ export function Board() {
   const loadJson = (f: File) => {
     const r = new FileReader()
     r.onload = () => {
-      try { objects.current = JSON.parse(r.result as string).objects || []; redoStack.current = []; paint(); showToast('Session loaded') }
+      try {
+        const before = clone(objects.current)
+        const after = (JSON.parse(r.result as string).objects || []).map((o: BoardObject) => ({ ...o, id: o.id || uid() }))
+        replace(after)
+        history.current!.push({ label: 'load JSON', undo: () => replace(before), redo: () => replace(after) })
+        showToast('Session loaded')
+      }
       catch { alert('Could not load JSON') }
     }
     r.readAsText(f)
@@ -189,8 +239,11 @@ export function Board() {
     try {
       const t = await fetchTemplate(file)
       const r = stageRef.current!.getBoundingClientRect()
-      objects.current = denormalize(markNormalized(t), r.width, r.height).map((o) => ({ ...o, id: o.id || uid() }))
-      redoStack.current = []; paint(); showToast(`Loaded · ${t.name}`)
+      const before = clone(objects.current)
+      const after = denormalize(markNormalized(t), r.width, r.height).map((o) => ({ ...o, id: o.id || uid() }))
+      replace(after)
+      history.current!.push({ label: 'apply template', undo: () => replace(before), redo: () => replace(after) })
+      showToast(`Loaded · ${t.name}`)
     } catch { showToast('Template load failed') }
   }
 
@@ -216,6 +269,7 @@ export function Board() {
           tool={tool} color={color} width={width}
           onTool={setTool} onColor={setColor} onWidth={setWidth}
           onUndo={undo} onRedo={redo}
+          canUndo={history.current.canUndo} canRedo={history.current.canRedo}
           onToggleGrid={() => stageRef.current!.classList.toggle('grid')}
           onPresent={() => appRef.current!.classList.toggle('present')}
           onExportPng={exportPng} onExportJson={exportJson} onLoadJson={loadJson} onClear={clear}

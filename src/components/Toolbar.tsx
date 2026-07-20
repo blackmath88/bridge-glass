@@ -12,6 +12,7 @@ interface Props {
   tool: Tool; color: string; width: number
   onTool: (t: Tool) => void; onColor: (c: string) => void; onWidth: (w: number) => void
   onUndo: () => void; onRedo: () => void
+  canUndo: boolean; canRedo: boolean
   onToggleGrid: () => void; onPresent: () => void
   onExportPng: () => void; onExportJson: () => void
   onLoadJson: (f: File) => void; onClear: () => void
@@ -35,8 +36,8 @@ export function Toolbar(p: Props) {
       <input type="range" min={1} max={18} value={p.width} title="Stroke width"
         onChange={(e) => p.onWidth(+e.target.value)} />
       <div className="divider" />
-      <button onClick={p.onUndo}>Undo</button>
-      <button onClick={p.onRedo}>Redo</button>
+      <button onClick={p.onUndo} disabled={!p.canUndo}>Undo</button>
+      <button onClick={p.onRedo} disabled={!p.canRedo}>Redo</button>
       <button onClick={p.onToggleGrid}>Grid</button>
       <button onClick={p.onPresent}>Present</button>
       <button onClick={p.onExportPng}>PNG</button>

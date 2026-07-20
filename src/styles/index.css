@@ -55,6 +55,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor
   font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
   line-height:1;cursor:pointer;transition:.2s var(--ease);user-select:none}
 .toolbar button:hover,.toolbar label.file:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.2)}
+.toolbar button:disabled{opacity:.32;cursor:not-allowed}
 .toolbar button.active{background:var(--accent-soft);border-color:var(--accent-line);color:var(--cream);
   box-shadow:inset 0 0 0 1px rgba(42,143,160,.14)}
 .toolbar button.danger:hover{background:rgba(212,65,107,.14);border-color:rgba(212,65,107,.34)}
