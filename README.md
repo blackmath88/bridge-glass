@@ -1,6 +1,6 @@
 # Bridgeboard (app)
 
-Dark-glass strategy board for the Bridge Work AI Lab. React + Vite + TypeScript, deploys to Cloudflare Pages. Templates load live from the [`bridge-glass`](https://github.com/blackmath88/bridge-glass) content repo — the single source of truth.
+Dark-glass strategy board for the Bridge Work AI Lab. React + Vite + TypeScript, deploys to Cloudflare Pages. Templates load live from the [`bridge-glass_content`](https://github.com/blackmath88/bridge-glass_content) content repo — the single source of truth.
 
 ## Run locally
 
@@ -30,7 +30,7 @@ npm run preview    # preview the production build
 
 ## Templates
 
-The Template panel fetches `index.json` from `bridge-glass/bridgeboard/templates/` and renders each on demand. Coordinates are normalized `0..1` in the repo and scaled to the live stage size on load, so the same template renders correctly on phone, notebook and projector.
+The Template panel fetches `index.json` from `bridge-glass_content/bridgeboard/templates/` and renders each on demand. Coordinates are normalized `0..1` in the repo and scaled to the live stage size on load, so the same template renders correctly on phone, notebook and projector.
 
 To point at a different template source, set `VITE_TEMPLATE_BASE` (see `.env.example`).
 
@@ -44,6 +44,8 @@ src/
 ```
 
 ## Roadmap
+
+Board persistence is local-first in Phase 1. All storage access is isolated in `src/lib/store.ts`, whose API can be backed by a Phase 2 Worker + D1/Durable Objects without changing UI components.
 
 - **Phase 1 (now)** — board, templates from repo, PNG/JSON export ✓
 - **Phase 2** — remote S Pen / QR join via Cloudflare Worker + Durable Object (`/host`, `/remote/:id`)
