@@ -1,4 +1,14 @@
+<!-- BEGIN public-repo-header -->
+<div align="center">
+
 # Bridgeboard (app)
+
+<a href="https://github.com/blackmath88/bridge-glass"><img alt="Primary language: TypeScript" src="https://img.shields.io/badge/language-TypeScript-526078?style=flat"></a>
+<a href="https://github.com/blackmath88/bridge-glass#readme"><img alt="README" src="https://img.shields.io/badge/docs-readme-16796f?style=flat"></a>
+<a href="https://github.com/blackmath88/bridge-glass/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/blackmath88/bridge-glass?style=flat&amp;color=737373"></a>
+
+</div>
+<!-- END public-repo-header -->
 
 Dark-glass strategy board for the Bridge Work AI Lab. React + Vite + TypeScript, deploys to Cloudflare Pages. Templates load live from the [`bridge-glass_content`](https://github.com/blackmath88/bridge-glass_content) content repo — the single source of truth.
 
